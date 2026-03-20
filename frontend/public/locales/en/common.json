@@ -1,0 +1,121 @@
+{
+  "app": {
+    "name": "Invoice Manager",
+    "subtitle": "Invoice Processing System"
+  },
+  "modules": {
+    "dashboard": "Dashboard",
+    "invoices": "Invoices",
+    "extraction": "Extraction",
+    "partners": "Partners",
+    "reports": "Reports",
+    "admin": "Admin"
+  },
+  "nav": {
+    "dashboard": "Overview",
+    "invoices": "Invoices",
+    "upload": "Upload",
+    "processing": "Processing",
+    "queue": "Queue",
+    "review": "Review",
+    "suppliers": "Suppliers",
+    "customers": "Customers",
+    "partners": "Partners",
+    "monthly": "Monthly",
+    "vat": "VAT",
+    "supplierReport": "Supplier",
+    "reports": "Reports",
+    "users": "Users",
+    "settings": "Settings",
+    "system": "System",
+    "audit": "Audit Log"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "loginButton": "Sign In",
+    "invalidCredentials": "Invalid email or password"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "totalInvoices": "Total Invoices",
+    "approved": "Approved",
+    "pendingReview": "Pending Review",
+    "errors": "Errors",
+    "totalAmount": "Total Amount",
+    "recentInvoices": "Recent Invoices",
+    "processingStatus": "Processing Status"
+  },
+  "invoices": {
+    "title": "Invoices",
+    "upload": "Upload Invoice",
+    "uploadDrop": "Drop PDF files here or click to browse",
+    "noInvoices": "No invoices",
+    "search": "Search...",
+    "filter": "Filter",
+    "all": "All",
+    "filename": "Filename",
+    "invoiceNumber": "Invoice Number",
+    "partner": "Partner",
+    "amount": "Amount",
+    "status": "Status",
+    "date": "Date",
+    "actions": "Actions"
+  },
+  "extraction": {
+    "title": "Extraction",
+    "queue": "Review Queue",
+    "review": "Review",
+    "approve": "Approve",
+    "reject": "Reject",
+    "duplicates": "Duplicates"
+  },
+  "partners": {
+    "title": "Partners",
+    "name": "Name",
+    "taxNumber": "Tax Number",
+    "type": "Type",
+    "invoiceCount": "Invoices",
+    "totalAmount": "Total Amount",
+    "addPartner": "Add Partner"
+  },
+  "reports": {
+    "title": "Reports",
+    "monthly": "Monthly Report",
+    "vat": "VAT Report",
+    "suppliers": "Supplier Report"
+  },
+  "admin": {
+    "title": "Administration",
+    "users": "Users",
+    "settings": "Settings",
+    "system": "System",
+    "audit": "Audit Log"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "loading": "Loading...",
+    "noData": "No data",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous"
+  },
+  "status": {
+    "uploaded": "Uploaded",
+    "ocr_processing": "OCR Processing",
+    "ocr_done": "OCR Done",
+    "extracting": "Extracting",
+    "pending_review": "Pending Review",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "error": "Error"
+  }
+}

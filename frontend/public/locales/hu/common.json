@@ -1,0 +1,121 @@
+{
+  "app": {
+    "name": "Invoice Manager",
+    "subtitle": "Számla Feldolgozó Rendszer"
+  },
+  "modules": {
+    "dashboard": "Irányítópult",
+    "invoices": "Számlák",
+    "extraction": "Kinyerés",
+    "partners": "Partnerek",
+    "reports": "Riportok",
+    "admin": "Admin"
+  },
+  "nav": {
+    "dashboard": "Áttekintés",
+    "invoices": "Számlák",
+    "upload": "Feltöltés",
+    "processing": "Feldolgozás",
+    "queue": "Várakozó",
+    "review": "Ellenőrzés",
+    "suppliers": "Szállítók",
+    "customers": "Vevők",
+    "partners": "Partnerek",
+    "monthly": "Havi",
+    "vat": "ÁFA",
+    "supplierReport": "Szállítói",
+    "reports": "Riportok",
+    "users": "Felhasználók",
+    "settings": "Beállítások",
+    "system": "Rendszer",
+    "audit": "Napló"
+  },
+  "auth": {
+    "login": "Bejelentkezés",
+    "logout": "Kijelentkezés",
+    "email": "E-mail",
+    "password": "Jelszó",
+    "loginButton": "Belépés",
+    "invalidCredentials": "Hibás e-mail vagy jelszó"
+  },
+  "dashboard": {
+    "title": "Irányítópult",
+    "totalInvoices": "Összes számla",
+    "approved": "Jóváhagyott",
+    "pendingReview": "Ellenőrzésre vár",
+    "errors": "Hibás",
+    "totalAmount": "Összérték",
+    "recentInvoices": "Legutóbbi számlák",
+    "processingStatus": "Feldolgozási státusz"
+  },
+  "invoices": {
+    "title": "Számlák",
+    "upload": "Számla feltöltés",
+    "uploadDrop": "Húzd ide a PDF fájlokat vagy kattints a tallózáshoz",
+    "noInvoices": "Nincsenek számlák",
+    "search": "Keresés...",
+    "filter": "Szűrés",
+    "all": "Összes",
+    "filename": "Fájlnév",
+    "invoiceNumber": "Számlaszám",
+    "partner": "Partner",
+    "amount": "Összeg",
+    "status": "Státusz",
+    "date": "Dátum",
+    "actions": "Műveletek"
+  },
+  "extraction": {
+    "title": "Kinyerés",
+    "queue": "Ellenőrzési sor",
+    "review": "Ellenőrzés",
+    "approve": "Jóváhagyás",
+    "reject": "Elutasítás",
+    "duplicates": "Duplikátumok"
+  },
+  "partners": {
+    "title": "Partnerek",
+    "name": "Név",
+    "taxNumber": "Adószám",
+    "type": "Típus",
+    "invoiceCount": "Számlák",
+    "totalAmount": "Összérték",
+    "addPartner": "Új partner"
+  },
+  "reports": {
+    "title": "Riportok",
+    "monthly": "Havi riport",
+    "vat": "ÁFA riport",
+    "suppliers": "Szállítói riport"
+  },
+  "admin": {
+    "title": "Adminisztráció",
+    "users": "Felhasználók",
+    "settings": "Beállítások",
+    "system": "Rendszer",
+    "audit": "Audit napló"
+  },
+  "common": {
+    "save": "Mentés",
+    "cancel": "Mégse",
+    "delete": "Törlés",
+    "edit": "Szerkesztés",
+    "create": "Létrehozás",
+    "search": "Keresés",
+    "loading": "Betöltés...",
+    "noData": "Nincs adat",
+    "confirm": "Megerősítés",
+    "back": "Vissza",
+    "next": "Következő",
+    "previous": "Előző"
+  },
+  "status": {
+    "uploaded": "Feltöltve",
+    "ocr_processing": "OCR feldolgozás",
+    "ocr_done": "OCR kész",
+    "extracting": "Kinyerés",
+    "pending_review": "Ellenőrzésre vár",
+    "approved": "Jóváhagyva",
+    "rejected": "Elutasítva",
+    "error": "Hiba"
+  }
+}
