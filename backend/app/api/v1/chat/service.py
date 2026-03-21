@@ -64,27 +64,38 @@ def _strip_sql_fences(text_content: str) -> str:
 
 def parse_sql_response(raw: str) -> str:
     """
-    Parse SQL from model response. Handles:
-    1. ```sql ... ``` code fences
-    2. Plain SQL
-    3. XML blocks (<think>, <answer>, etc.) with SQL inside
+    Parse SQL from model response. Handles multiple formats:
+    - ```sql ... ``` code fences (with optional prefix text)
+    - <answer>...</answer> XML blocks
+    - Plain SQL with trailing ```
+    - "SQL: SELECT..." prefix patterns
     """
-    # Try extracting from code fences first
-    sql_from_fences = _extract_sql_from_fences(raw)
+    stripped = raw.strip()
+
+    # 1. Try extracting from code fences (works even with prefix text like "SQL:\n```sql...")
+    sql_from_fences = _extract_sql_from_fences(stripped)
     if sql_from_fences:
         return sql_from_fences
 
-    # Try <answer> block (Arctic compat)
-    answer_match = re.search(r'<answer>(.*?)</answer>', raw, re.DOTALL)
+    # 2. Try <answer> block
+    answer_match = re.search(r'<answer>(.*?)</answer>', stripped, re.DOTALL)
     if answer_match:
         sql = answer_match.group(1).strip()
         sql = _strip_sql_fences(sql)
         return sql.strip()
 
-    # Strip any XML blocks and fences
-    sql = _strip_xml_blocks(raw)
-    sql = _strip_sql_fences(sql)
-    return sql.strip()
+    # 3. Strip trailing ``` (from assistant prefill)
+    if stripped.endswith('```'):
+        stripped = stripped[:-3].strip()
+
+    # 4. Strip XML blocks
+    stripped = _strip_xml_blocks(stripped)
+    stripped = _strip_sql_fences(stripped)
+
+    # 5. Remove common prefixes like "SQL:", "SQL: ", "Here is the SQL:"
+    stripped = re.sub(r'^(?:SQL\s*:\s*)', '', stripped, flags=re.IGNORECASE).strip()
+
+    return stripped
 
 
 def validate_sql(sql: str) -> str | None:
@@ -186,23 +197,32 @@ def build_messages(
     error_context: str | None = None,
 ) -> list[dict]:
     """
-    Build chat messages for the sqlcoder model.
-    Uses the defog prompt format: question + instructions + DDL in user message,
-    assistant prefill with "The following SQL query best answers the question".
+    Build chat messages for qwen3 model.
+    System message with schema + rules, few-shot as examples, user question.
     """
-    instructions = _build_instructions(few_shots)
+    system_content = "\n\n".join([
+        "Te egy SQL lekérdezés generátor vagy egy pénzügyi rendszerhez. "
+        "CSAK a nyers SQL-t add vissza, semmilyen magyarázatot, markdown formázást vagy gondolkodást ne adj. "
+        "Csak SELECT lekérdezéseket írj.",
+        "Database schema:",
+        DDL_SCHEMA,
+        "Business rules:",
+        BUSINESS_RULES,
+    ])
 
-    user_content = f"Generate a SQL query to answer this question: `{question}`\n"
-    user_content += f"{instructions}\n\n"
-    user_content += f"DDL statements:\n{DDL_SCHEMA}"
-
-    if error_context:
-        user_content += f"\n\nThe previous SQL attempt failed:\n{error_context}\nPlease fix the SQL query."
+    if few_shots:
+        examples = _build_few_shot_text(few_shots)
+        system_content += f"\n\nPéldák:\n{examples}"
 
     messages: list[dict] = [
-        {"role": "user", "content": user_content},
-        {"role": "assistant", "content": f'The following SQL query best answers the question `{question}`:\n```sql'},
+        {"role": "system", "content": system_content},
     ]
+
+    user_content = question
+    if error_context:
+        user_content += f"\n\nAz előző SQL hibás volt:\n{error_context}\nJavítsd ki."
+
+    messages.append({"role": "user", "content": user_content})
 
     return messages
 
@@ -227,10 +247,10 @@ async def generate_sql_with_retry(
         # Build messages
         messages = build_messages(question, few_shots, error_context)
 
-        # Generate SQL via chat API
+        # Generate SQL via chat API (think=False to skip reasoning)
         t0 = time.monotonic()
         raw = await _call_ollama_chat(
-            settings.SQL_MODEL, messages, num_predict=300,
+            settings.SQL_MODEL, messages, num_predict=300, think=False,
         )
         sql_ms = int((time.monotonic() - t0) * 1000)
         total_sql_ms += sql_ms

@@ -177,6 +177,26 @@ CREATE TABLE audit_logs (
     ip_address VARCHAR(45),
     created_at TIMESTAMP
 );
+
+CREATE TABLE cfo_metrics (
+    id VARCHAR(36) PRIMARY KEY,
+    metric_key VARCHAR(80) NOT NULL,             -- metrika azonosito
+    period VARCHAR(7) NOT NULL,                  -- idoszak 'YYYY-MM'
+    value FLOAT NOT NULL,                        -- szamitott ertek
+    currency VARCHAR(3) DEFAULT 'HUF' NOT NULL,
+    calculated_at TIMESTAMP NOT NULL,
+    UNIQUE(metric_key, period)
+);
+-- cfo_metrics tartalma: elokalkulalt CFO metrikak (30 db, oranként frissul)
+-- Hasznald a cfo_metrics tablat ha penzugyi osszesitesrol, KPI-rol, trendrol kerdeznek!
+-- Metric kulcsok: invoice_total_count, invoice_processed_count, invoice_unprocessed_count,
+--   invoice_rejected_count, invoice_total_gross_amount, invoice_processed_gross_amount,
+--   budget_planned_total, budget_actual_total, budget_variance, budget_overage_line_count,
+--   overdue_invoice_count, overdue_invoice_amount, upcoming_due_7d_amount, upcoming_due_30d_amount,
+--   top_supplier_amount, active_supplier_count, supplier_concentration_top5_pct, avg_invoice_amount,
+--   avg_processing_time_hours, avg_approval_time_hours, duplicate_invoice_count, error_rate_pct,
+--   pnl_revenue, pnl_ebitda, pnl_net_income, dept_highest_spend_amount, dept_count_over_budget,
+--   po_open_count, po_open_amount, invoice_amount_mom_change_pct
 """.strip()
 
 BUSINESS_RULES = """
@@ -193,6 +213,10 @@ BUSINESS_RULES = """
 -- Lejart hatarideju szamla: invoices WHERE due_date < CURRENT_DATE AND status NOT IN ('posted','rejected','error')
 -- Mindig LIMIT 100, kiveve ha a felhasznalo mast ker (pl. TOP 5 → LIMIT 5)
 -- Osszegeket ne kerekitsd, hasznald a pontos ertekeket
+-- CFO metrikak: ha osszesitett penzugyi adatrol, KPI-rol, EBITDA-rol, bevetelrol, trendrol kerdeznek,
+--   ELOSZOR probald a cfo_metrics tablabol lekerdezni (gyorsabb, elokalkulalt)
+-- cfo_metrics.metric_key ertekek: invoice_total_count, invoice_processed_gross_amount, budget_variance,
+--   overdue_invoice_amount, pnl_revenue, pnl_ebitda, pnl_net_income, error_rate_pct, stb.
 """.strip()
 
 FEW_SHOT_EXAMPLES: list[dict[str, str]] = [
@@ -267,5 +291,54 @@ FEW_SHOT_EXAMPLES: list[dict[str, str]] = [
     {
         "question": "Szamla statuszok megoszlasa",
         "sql": "SELECT status, COUNT(*) AS db FROM invoices GROUP BY status ORDER BY db DESC LIMIT 100;",
+    },
+    # === CFO Metrics few-shots ===
+    {
+        "question": "Mennyi volt a bevetel idén januarban?",
+        "sql": "SELECT value AS bevetel FROM cfo_metrics WHERE metric_key = 'pnl_revenue' AND period = '2025-01' LIMIT 1;",
+    },
+    {
+        "question": "Mi az EBITDA az aktualis honapban?",
+        "sql": "SELECT value AS ebitda FROM cfo_metrics WHERE metric_key = 'pnl_ebitda' AND period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') LIMIT 1;",
+    },
+    {
+        "question": "Mennyi lejart hatarideju szamla van?",
+        "sql": "SELECT value AS lejart_db FROM cfo_metrics WHERE metric_key = 'overdue_invoice_count' AND period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') LIMIT 1;",
+    },
+    {
+        "question": "Koltsegvetesi elteres az aktualis honapban?",
+        "sql": "SELECT value AS elteres FROM cfo_metrics WHERE metric_key = 'budget_variance' AND period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') LIMIT 1;",
+    },
+    {
+        "question": "Osszes CFO metrika az aktualis honapban",
+        "sql": "SELECT metric_key, value FROM cfo_metrics WHERE period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') ORDER BY metric_key LIMIT 100;",
+    },
+    {
+        "question": "Havi bevetel trend az utolso felev",
+        "sql": "SELECT period, value AS bevetel FROM cfo_metrics WHERE metric_key = 'pnl_revenue' ORDER BY period DESC LIMIT 6;",
+    },
+    {
+        "question": "Mennyi a netto eredmeny?",
+        "sql": "SELECT value AS netto_eredmeny FROM cfo_metrics WHERE metric_key = 'pnl_net_income' AND period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') LIMIT 1;",
+    },
+    {
+        "question": "Mekkora a hibaarany a szamlafeldolgozasban?",
+        "sql": "SELECT value AS hiba_pct FROM cfo_metrics WHERE metric_key = 'error_rate_pct' AND period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') LIMIT 1;",
+    },
+    {
+        "question": "Mennyi a tervezett koltsegvetes 2024-ben?",
+        "sql": "SELECT SUM(value) AS tervezett_koltsegvetes FROM cfo_metrics WHERE metric_key = 'budget_planned_total' AND period LIKE '2024%' LIMIT 1;",
+    },
+    {
+        "question": "Eves EBITDA 2024-ben?",
+        "sql": "SELECT SUM(value) AS eves_ebitda FROM cfo_metrics WHERE metric_key = 'pnl_ebitda' AND period LIKE '2024%' LIMIT 1;",
+    },
+    {
+        "question": "Havi bevetelek 2024-ben",
+        "sql": "SELECT period, value AS bevetel FROM cfo_metrics WHERE metric_key = 'pnl_revenue' AND period LIKE '2024%' ORDER BY period LIMIT 12;",
+    },
+    {
+        "question": "Budget elteres havonta 2024-ben",
+        "sql": "SELECT period, value AS elteres FROM cfo_metrics WHERE metric_key = 'budget_variance' AND period LIKE '2024%' ORDER BY period LIMIT 12;",
     },
 ]

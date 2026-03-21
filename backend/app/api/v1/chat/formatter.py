@@ -30,12 +30,8 @@ def format_answer(question: str, results: list[dict], row_count: int) -> str | N
             lines.append(f"- **{label}**: {formatted}")
         return "\n".join(lines)
 
-    if row_count <= 50:
-        # Multiple rows — markdown table
-        return _build_table(results)
-
-    # Too many rows or too complex
-    return None
+    # Multiple rows — markdown table (cap at 100 rows)
+    return _build_table(results[:100])
 
 
 def _format_single_value(col_name: str, value: Any) -> str:

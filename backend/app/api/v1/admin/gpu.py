@@ -24,23 +24,21 @@ async def gpu_status(current_user: User = Depends(get_current_user)):
 
     state = inst["State"]["Name"]
     public_ip = inst.get("PublicIpAddress")
-    instance_type = inst.get("InstanceType", "g4dn.xlarge")
+    private_ip = inst.get("PrivateIpAddress")
+    instance_type = inst.get("InstanceType", "g6.xlarge")
 
-    # Check Ollama if running
+    # Check Ollama if running (use private IP — security group blocks public access to 11434)
     ollama_status = "offline"
     models = []
-    gpu_info = None
 
-    if state == "running" and public_ip:
+    if state == "running" and private_ip:
         try:
-            r = httpx.get(f"http://{public_ip}:11434/api/tags", timeout=5.0)
+            r = httpx.get(f"http://{private_ip}:11434/api/tags", timeout=5.0)
             if r.status_code == 200:
                 ollama_status = "ready"
                 models = [m["name"] for m in r.json().get("models", [])]
         except:
             ollama_status = "starting"
-
-        # GPU info is static for T4, no need to probe
 
     return {
         "instance_id": INSTANCE_ID,
