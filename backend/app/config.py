@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     VLM_MODEL: str = "qwen2.5vl:7b"
 
     # Text-to-SQL pipeline
-    SQL_MODEL: str = "a-kore/Arctic-Text2SQL-R1-7B"
+    SQL_MODEL: str = "mannix/defog-llama3-sqlcoder-8b"
     ANSWER_MODEL: str = "qwen3:14b"
     SQL_MAX_RETRIES: int = 3
 
