@@ -23,8 +23,17 @@ class Settings(BaseSettings):
     LLM_TEMPERATURE: float = 0.0
     VLM_MODEL: str = "qwen2.5vl:7b"
 
+    # Text-to-SQL pipeline
+    SQL_MODEL: str = "a-kore/Arctic-Text2SQL-R1-7B"
+    ANSWER_MODEL: str = "qwen3:14b"
+    SQL_MAX_RETRIES: int = 3
+
+    # RAG (Phase 2)
+    QDRANT_COLLECTION: str = "text2sql_examples"
+    EMBEDDING_MODEL: str = "nomic-embed-text"
+
     # App
-    APP_NAME: str = "Invoice Manager"
+    APP_NAME: str = "Financial Planning and Controls"
     APP_ENV: str = "development"
     CORS_ORIGINS: str = "http://localhost:3000,http://192.168.0.120:3000"
     UPLOAD_DIR: str = "./data/pdfs"
