@@ -7,8 +7,9 @@ from app.exceptions import NotFoundError
 class ExtractionService:
     @staticmethod
     async def get_queue(db: AsyncSession, page: int, limit: int) -> dict:
-        query = select(Invoice).where(Invoice.status == InvoiceStatus.pending_review)
-        count_query = select(func.count(Invoice.id)).where(Invoice.status == InvoiceStatus.pending_review)
+        review_statuses = [InvoiceStatus.pending_review, InvoiceStatus.in_approval, InvoiceStatus.approved]
+        query = select(Invoice).where(Invoice.status.in_(review_statuses))
+        count_query = select(func.count(Invoice.id)).where(Invoice.status.in_(review_statuses))
 
         total = await db.scalar(count_query) or 0
         result = await db.execute(
