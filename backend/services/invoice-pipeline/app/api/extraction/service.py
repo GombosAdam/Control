@@ -84,10 +84,39 @@ class ExtractionService:
         except Exception as e:
             logger.warning("Correction detection failed for %s: %s", invoice_id, e)
 
-        invoice.status = InvoiceStatus.pending_review
         invoice.reviewed_by_id = user_id
+
+        # Start 3-step approval workflow directly
+        from common.models.invoice_approval import InvoiceApproval
+        from common.models.audit import AuditLog
+
+        # Check if approval chain already exists
+        existing = await db.execute(
+            select(InvoiceApproval).where(InvoiceApproval.invoice_id == invoice_id).limit(1)
+        )
+        if not existing.scalar_one_or_none():
+            steps = [
+                (1, "Ellenőrzés", "reviewer"),
+                (2, "Jóváhagyás", "department_head"),
+                (3, "Pénzügyi jóváhagyás", "cfo"),
+            ]
+            for step_num, name, role in steps:
+                approval = InvoiceApproval(
+                    invoice_id=invoice_id,
+                    step=step_num,
+                    step_name=name,
+                    status="pending" if step_num == 1 else "waiting",
+                    assigned_role=role,
+                )
+                db.add(approval)
+            invoice.status = InvoiceStatus.in_approval
+            log = AuditLog(user_id=user_id, action="invoice.submit_approval", entity_type="invoice", entity_id=invoice_id, details={"steps": 3, "source": "extraction_approve"})
+            db.add(log)
+        else:
+            invoice.status = InvoiceStatus.in_approval
+
         await db.commit()
-        return {"id": invoice.id, "status": "pending_review"}
+        return {"id": invoice.id, "status": "in_approval"}
 
     @staticmethod
     async def reject(db: AsyncSession, invoice_id: str, user_id: str) -> dict:
