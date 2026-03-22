@@ -10,7 +10,7 @@ import { departmentsApi } from '../../../services/api/departments';
 import { budgetApi } from '../../../services/api/budget';
 import { scenariosApi } from '../../../services/api/scenarios';
 import { formatCurrency } from '../../../utils/formatters';
-import type { PnlRow, PnlChildLine, Department, ValidationResult, AuditLogEntry, BudgetLineComment, Scenario } from '../../../types/controlling';
+import type { PnlRow, PnlChildLine, Department, ValidationResult, AuditLogEntry, BudgetLineComment, Scenario, PlanningPeriod } from '../../../types/controlling';
 
 // Row style configs per P&L key
 const ROW_CONFIG: Record<string, { bg: string; border: string; color: string; weight: number; indent: number }> = {
@@ -61,8 +61,28 @@ export function EbitdaPage() {
   const [showNewScenarioModal, setShowNewScenarioModal] = useState(false);
   const [newScenarioForm, setNewScenarioForm] = useState({ name: '', description: '', sourceId: '', adjustPct: 0 });
 
+  // Planning periods
+  const [planningPeriods, setPlanningPeriods] = useState<PlanningPeriod[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState('');
+  const [showNewPlanningPeriodModal, setShowNewPlanningPeriodModal] = useState(false);
+  const [ppForm, setPpForm] = useState({
+    name: '', year: new Date().getFullYear(), start_month: 1, end_month: 12,
+    plan_type: 'budget' as string, source_period_id: '', adjustment_pct: 0,
+  });
+
+  // Derive period range from selected planning period
+  const selectedPP = planningPeriods.find(p => p.id === selectedPeriodId);
+
+  // Build periods for navigation from selected planning period or raw periods
+  const effectivePeriods = selectedPP
+    ? Array.from(
+        { length: selectedPP.end_month - selectedPP.start_month + 1 },
+        (_, i) => `${selectedPP.year}-${String(selectedPP.start_month + i).padStart(2, '0')}`
+      )
+    : rawPeriods;
+
   // Group raw monthly periods by scale
-  const groupedPeriods = groupPeriods(rawPeriods, scale);
+  const groupedPeriods = groupPeriods(effectivePeriods, scale);
   const currentGroup = groupedPeriods[periodIndex];
   const periodFilter = scale === 'month' ? (currentGroup?.from || '') : '';
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -112,22 +132,47 @@ export function EbitdaPage() {
     });
   }, []);
 
+  // Load planning periods
+  const loadPlanningPeriods = useCallback(() => {
+    budgetApi.listPlanningPeriods().then((list: PlanningPeriod[]) => {
+      setPlanningPeriods(list);
+    });
+  }, []);
+  useEffect(() => { loadPlanningPeriods(); }, [loadPlanningPeriods]);
+
+  // Reset period index when selected planning period changes
+  useEffect(() => { setPeriodIndex(0); }, [selectedPeriodId]);
+
   const load = useCallback(() => {
-    if (!currentGroup) return;
+    // If we have a selected planning period, always load (even without currentGroup for 'year' view)
     const params: any = {
       department_id: deptFilter || undefined,
       status: statusFilter || undefined,
       plan_type: planType,
       scenario_id: scenarioId || undefined,
     };
-    if (scale === 'month') {
-      params.period = currentGroup.from;
+    if (selectedPeriodId) {
+      params.planning_period_id = selectedPeriodId;
+      // Still pass period navigation if available
+      if (currentGroup) {
+        if (scale === 'month') {
+          params.period = currentGroup.from;
+        } else {
+          params.period_from = currentGroup.from;
+          params.period_to = currentGroup.to;
+        }
+      }
     } else {
-      params.period_from = currentGroup.from;
-      params.period_to = currentGroup.to;
+      if (!currentGroup) return;
+      if (scale === 'month') {
+        params.period = currentGroup.from;
+      } else {
+        params.period_from = currentGroup.from;
+        params.period_to = currentGroup.to;
+      }
     }
     controllingApi.pnlWaterfall(params).then((data: any) => setRows(data.rows || []));
-  }, [deptFilter, statusFilter, currentGroup, scale, planType, scenarioId]);
+  }, [deptFilter, statusFilter, currentGroup, scale, planType, scenarioId, selectedPeriodId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -179,6 +224,7 @@ export function EbitdaPage() {
         pnl_category: category,
         plan_type: planType,
         scenario_id: scenarioId || undefined,
+        planning_period_id: selectedPeriodId || undefined,
       });
       setShowAdd(null);
       setAddForm({ account_code: '', account_name: '', planned_amount: 0, department_id: '' });
@@ -379,14 +425,56 @@ export function EbitdaPage() {
     } catch (e: any) { alert(e.response?.data?.error || 'Hiba'); }
   };
 
+  // Planning period create
+  const handleCreatePlanningPeriod = async () => {
+    if (!ppForm.name) return;
+    try {
+      const result = await budgetApi.createPlanningPeriod({
+        name: ppForm.name,
+        year: ppForm.year,
+        start_month: ppForm.start_month,
+        end_month: ppForm.end_month,
+        plan_type: ppForm.plan_type,
+        scenario_id: scenarioId || undefined,
+        source_period_id: ppForm.source_period_id || undefined,
+        adjustment_pct: ppForm.adjustment_pct,
+        department_id: deptFilter || undefined,
+      });
+      setShowNewPlanningPeriodModal(false);
+      loadPlanningPeriods();
+      setSelectedPeriodId(result.id);
+      setPlanType(ppForm.plan_type as 'budget' | 'forecast');
+      setPeriodIndex(0);
+      alert(`Tervezési időszak létrehozva: ${result.name} (${result.lines_created} sor)`);
+    } catch (e: any) { alert(e.response?.data?.message || e.response?.data?.error || 'Hiba'); }
+  };
+
+  // Delete planning period
+  const handleDeletePlanningPeriod = async () => {
+    if (!selectedPeriodId) return;
+    const pp = planningPeriods.find(p => p.id === selectedPeriodId);
+    if (!confirm(`Biztosan törölni szeretnéd: "${pp?.name}"?\nCsak draft sorok kerülnek törlésre.`)) return;
+    try {
+      const result = await budgetApi.deletePlanningPeriod(selectedPeriodId);
+      setSelectedPeriodId('');
+      loadPlanningPeriods();
+      // Reload raw periods too
+      const periods = await budgetApi.getPeriods();
+      setRawPeriods(periods);
+      alert(`Tervezési időszak törölve (${result.lines_deleted} sor)`);
+    } catch (e: any) { alert(e.response?.data?.message || e.response?.data?.error || 'Hiba'); }
+  };
+
   return (
     <div style={{ padding: '20px 24px', height: 'calc(100vh)', overflow: 'auto', background: '#f8f9fb' }}>
       {/* Header */}
       <div style={{ marginBottom: '20px' }}>
         <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#111', margin: 0, letterSpacing: '-0.3px' }}>
-          Eredménykimutatás (P&L)
+          Tervezés
         </h1>
-        <p style={{ fontSize: '12px', color: '#888', margin: '4px 0 0' }}>Terv vs. Tény — teljes waterfall struktúra</p>
+        <p style={{ fontSize: '12px', color: '#888', margin: '4px 0 0' }}>
+          {selectedPP ? `${selectedPP.name} — ${MONTH_NAMES[selectedPP.start_month - 1]}–${MONTH_NAMES[selectedPP.end_month - 1]} ${selectedPP.year}` : 'Válassz tervezési időszakot vagy hozz létre újat'}
+        </p>
       </div>
 
       {/* KPI strip */}
@@ -410,6 +498,53 @@ export function EbitdaPage() {
           if (e.key === 'ArrowRight') setPeriodIndex(i => Math.min(groupedPeriods.length - 1, i + 1));
         }}
       >
+        {/* Planning period selector */}
+        <select
+          value={selectedPeriodId}
+          onChange={e => {
+            const id = e.target.value;
+            setSelectedPeriodId(id);
+            const pp = planningPeriods.find(p => p.id === id);
+            if (pp) {
+              setPlanType(pp.plan_type as 'budget' | 'forecast');
+              if (pp.scenario_id) setScenarioId(pp.scenario_id);
+            }
+          }}
+          style={{ ...filterStyle, minWidth: '200px', fontWeight: 600 }}
+        >
+          <option value="">— Nincs tervezési időszak —</option>
+          {planningPeriods.map(pp => (
+            <option key={pp.id} value={pp.id}>
+              {pp.name} ({MONTH_SHORT[pp.start_month - 1]}–{MONTH_SHORT[pp.end_month - 1]} {pp.year})
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={() => {
+            setPpForm({
+              name: '', year: new Date().getFullYear(), start_month: 1, end_month: 12,
+              plan_type: planType, source_period_id: '', adjustment_pct: 0,
+            });
+            setShowNewPlanningPeriodModal(true);
+          }}
+          style={{ ...toolBtnStyle, padding: '6px 10px' }}
+          title="Új tervezési időszak"
+        >
+          <Plus size={13} /> Új időszak
+        </button>
+        {selectedPeriodId && (
+          <button
+            onClick={handleDeletePlanningPeriod}
+            style={{ ...toolBtnStyle, padding: '6px 10px', color: '#dc2626', borderColor: '#fca5a5' }}
+            title="Tervezési időszak törlése"
+          >
+            <X size={13} />
+          </button>
+        )}
+
+        {/* Separator */}
+        <div style={{ width: '1px', height: '28px', background: '#e5e7eb' }} />
+
         {/* Scale selector */}
         <div style={{
           display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '3px',
@@ -554,8 +689,8 @@ export function EbitdaPage() {
           </button>
         )}
 
-        <button onClick={() => setShowYearPlanModal(true)} style={toolBtnStyle} title="Új éves terv indítása">
-          <CalendarPlus size={13} /> Új időszak
+        <button onClick={() => setShowYearPlanModal(true)} style={toolBtnStyle} title="Éves terv (régi mód, planning period nélkül)">
+          <CalendarPlus size={13} /> Éves terv
         </button>
 
         <button onClick={() => setShowCopyModal(true)} style={toolBtnStyle} title="Másolás korábbi időszakból">
@@ -1201,6 +1336,105 @@ export function EbitdaPage() {
               <button onClick={handleCreateScenario} disabled={!newScenarioForm.name} style={{
                 ...modalPrimaryBtn, background: newScenarioForm.name ? '#3b82f6' : '#d1d5db',
                 cursor: newScenarioForm.name ? 'pointer' : 'default',
+              }}>Létrehozás</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW PLANNING PERIOD MODAL */}
+      {showNewPlanningPeriodModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '24px', width: '460px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CalendarPlus size={18} /> Új tervezési időszak
+            </h3>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={labelStyle}>Név</label>
+              <input value={ppForm.name} onChange={e => setPpForm({ ...ppForm, name: e.target.value })}
+                style={{ ...filterStyle, width: '100%' }} placeholder="pl. 2026 Budget" />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+              <div>
+                <label style={labelStyle}>Év</label>
+                <input type="number" value={ppForm.year} onChange={e => setPpForm({ ...ppForm, year: Number(e.target.value) })}
+                  style={{ ...filterStyle, width: '100%' }} />
+              </div>
+              <div>
+                <label style={labelStyle}>Kezdő hónap</label>
+                <select value={ppForm.start_month} onChange={e => setPpForm({ ...ppForm, start_month: Number(e.target.value) })}
+                  style={{ ...filterStyle, width: '100%' }}>
+                  {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Záró hónap</label>
+                <select value={ppForm.end_month} onChange={e => setPpForm({ ...ppForm, end_month: Number(e.target.value) })}
+                  style={{ ...filterStyle, width: '100%' }}>
+                  {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={labelStyle}>Terv típus</label>
+              <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '3px' }}>
+                {(['budget', 'forecast'] as const).map(pt => (
+                  <button
+                    key={pt}
+                    onClick={() => setPpForm({ ...ppForm, plan_type: pt })}
+                    style={{
+                      flex: 1, padding: '6px 16px', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600,
+                      background: ppForm.plan_type === pt ? '#fff' : 'transparent',
+                      color: ppForm.plan_type === pt ? (pt === 'budget' ? '#1d4ed8' : '#7c3aed') : '#888',
+                      cursor: 'pointer',
+                      boxShadow: ppForm.plan_type === pt ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    }}
+                  >
+                    {pt === 'budget' ? 'Budget' : 'Forecast'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={labelStyle}>Forrás tervezési időszak (opcionális — másoláshoz)</label>
+              <select value={ppForm.source_period_id} onChange={e => setPpForm({ ...ppForm, source_period_id: e.target.value })}
+                style={{ ...filterStyle, width: '100%' }}>
+                <option value="">— Üres terv —</option>
+                {planningPeriods.map(pp => (
+                  <option key={pp.id} value={pp.id}>{pp.name} ({pp.year})</option>
+                ))}
+              </select>
+            </div>
+
+            {ppForm.source_period_id && (
+              <div style={{ marginBottom: '12px' }}>
+                <label style={labelStyle}>Korrekció (%)</label>
+                <input type="number" value={ppForm.adjustment_pct} onChange={e => setPpForm({ ...ppForm, adjustment_pct: Number(e.target.value) })}
+                  style={{ ...filterStyle, width: '100%' }} placeholder="+5 = 5%-os növekedés" />
+              </div>
+            )}
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={labelStyle}>Szcenárió</label>
+              <select value={scenarioId} onChange={e => setScenarioId(e.target.value)} style={{ ...filterStyle, width: '100%' }}>
+                {scenarios.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}{s.is_default ? ' (alap)' : ''}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button onClick={() => setShowNewPlanningPeriodModal(false)} style={modalCancelBtn}>Mégse</button>
+              <button onClick={handleCreatePlanningPeriod} disabled={!ppForm.name} style={{
+                ...modalPrimaryBtn, background: ppForm.name ? '#3b82f6' : '#d1d5db',
+                cursor: ppForm.name ? 'pointer' : 'default',
               }}>Létrehozás</button>
             </div>
           </div>

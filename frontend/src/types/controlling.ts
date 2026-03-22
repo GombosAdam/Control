@@ -204,3 +204,17 @@ export interface Scenario {
   creator_name: string | null;
   created_at: string;
 }
+
+export interface PlanningPeriod {
+  id: string;
+  name: string;
+  year: number;
+  start_month: number;
+  end_month: number;
+  plan_type: string;
+  scenario_id: string | null;
+  scenario_name: string | null;
+  created_by: string;
+  creator_name: string | null;
+  created_at: string;
+}

@@ -4,7 +4,7 @@ export const budgetApi = {
   listLines: (params?: { department_id?: string; period?: string; status?: string; page?: number; limit?: number; plan_type?: string; scenario_id?: string }) =>
     api.get('/budget/lines', { params }).then(r => r.data),
 
-  createLine: (data: { department_id: string; account_code: string; account_name: string; period: string; planned_amount: number; currency?: string; pnl_category?: string; plan_type?: string; scenario_id?: string }) =>
+  createLine: (data: { department_id: string; account_code: string; account_name: string; period: string; planned_amount: number; currency?: string; pnl_category?: string; plan_type?: string; scenario_id?: string; planning_period_id?: string }) =>
     api.post('/budget/lines', data).then(r => r.data),
 
   updateLine: (id: string, data: { account_code?: string; account_name?: string; planned_amount?: number }) =>
@@ -51,4 +51,21 @@ export const budgetApi = {
 
   addLineComment: (lineId: string, text: string) =>
     api.post(`/budget/lines/${lineId}/comments`, { text }).then(r => r.data),
+
+  // Planning Periods
+  listPlanningPeriods: (params?: { scenario_id?: string; plan_type?: string }) =>
+    api.get('/planning-periods', { params }).then(r => r.data),
+
+  createPlanningPeriod: (data: {
+    name: string; year: number; start_month?: number; end_month?: number;
+    plan_type?: string; scenario_id?: string; source_period_id?: string;
+    adjustment_pct?: number; department_id?: string;
+  }) =>
+    api.post('/planning-periods', data).then(r => r.data),
+
+  getPlanningPeriod: (id: string) =>
+    api.get(`/planning-periods/${id}`).then(r => r.data),
+
+  deletePlanningPeriod: (id: string) =>
+    api.delete(`/planning-periods/${id}`).then(r => r.data),
 };

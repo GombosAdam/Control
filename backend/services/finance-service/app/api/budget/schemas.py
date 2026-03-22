@@ -12,6 +12,7 @@ class BudgetLineCreate(BaseModel):
     sort_order: int = 0
     plan_type: str = "budget"
     scenario_id: str | None = None
+    planning_period_id: str | None = None
 
 
 class BudgetLineUpdate(BaseModel):

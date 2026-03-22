@@ -54,7 +54,8 @@ async def pnl_waterfall(
     period_to: str | None = None,
     plan_type: str | None = None,
     scenario_id: str | None = None,
+    planning_period_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await ControllingService.pnl_waterfall(db, department_id, period, status, period_from, period_to, plan_type, scenario_id)
+    return await ControllingService.pnl_waterfall(db, department_id, period, status, period_from, period_to, plan_type, scenario_id, planning_period_id)

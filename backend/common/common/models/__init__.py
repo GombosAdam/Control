@@ -15,6 +15,7 @@ from common.models.purchase_order_approval import PurchaseOrderApproval
 from common.models.accounting_template import AccountingTemplate
 from common.models.cfo_metric import CfoMetric
 from common.models.ai_enrichment import AIEnrichment
+from common.models.planning_period import PlanningPeriod
 
 __all__ = [
     "User", "Invoice", "InvoiceLine", "ExtractionResult",
@@ -22,5 +23,5 @@ __all__ = [
     "Department", "BudgetLine", "PurchaseOrder", "AccountingEntry",
     "BudgetLineComment", "Scenario", "InvoiceApproval",
     "PurchaseOrderApproval", "AccountingTemplate", "CfoMetric",
-    "AIEnrichment",
+    "AIEnrichment", "PlanningPeriod",
 ]

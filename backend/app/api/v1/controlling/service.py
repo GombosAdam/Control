@@ -196,14 +196,31 @@ class ControllingService:
     async def pnl_waterfall(db: AsyncSession, department_id: str | None, period: str | None,
                             status: str | None = None,
                             period_from: str | None = None, period_to: str | None = None,
-                            plan_type: str | None = None, scenario_id: str | None = None) -> dict:
+                            plan_type: str | None = None, scenario_id: str | None = None,
+                            planning_period_id: str | None = None) -> dict:
         """
         Full P&L waterfall: Revenue → Gross Profit → EBITDA → EBIT → PBT → Net Income
         Returns line items grouped by pnl_category with plan/actual/variance,
         plus computed subtotal rows.
         Supports single period, or period_from/period_to range for quarterly/yearly aggregation.
+        If planning_period_id is given, filters by it and derives period range from the planning period.
         """
+        # If planning_period_id is given, derive period range from it
+        if planning_period_id:
+            from app.models.planning_period import PlanningPeriod
+            pp = await db.get(PlanningPeriod, planning_period_id)
+            if pp:
+                if not plan_type:
+                    plan_type = pp.plan_type
+                if not scenario_id and pp.scenario_id:
+                    scenario_id = pp.scenario_id
+                if not period and not period_from and not period_to:
+                    period_from = f"{pp.year}-{pp.start_month:02d}"
+                    period_to = f"{pp.year}-{pp.end_month:02d}"
+
         bl_query = select(BudgetLine)
+        if planning_period_id:
+            bl_query = bl_query.where(BudgetLine.planning_period_id == planning_period_id)
         if status:
             bl_query = bl_query.where(BudgetLine.status == BudgetStatus(status))
         if department_id:

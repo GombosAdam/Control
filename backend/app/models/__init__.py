@@ -14,6 +14,7 @@ from app.models.invoice_approval import InvoiceApproval
 from app.models.purchase_order_approval import PurchaseOrderApproval
 from app.models.accounting_template import AccountingTemplate
 from app.models.cfo_metric import CfoMetric
+from app.models.planning_period import PlanningPeriod
 
 __all__ = [
     "User", "Invoice", "InvoiceLine", "ExtractionResult",
@@ -21,4 +22,5 @@ __all__ = [
     "Department", "BudgetLine", "PurchaseOrder", "AccountingEntry",
     "BudgetLineComment", "Scenario", "InvoiceApproval",
     "PurchaseOrderApproval", "AccountingTemplate", "CfoMetric",
+    "PlanningPeriod",
 ]

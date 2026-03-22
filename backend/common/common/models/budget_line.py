@@ -47,7 +47,12 @@ class BudgetLine(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+    planning_period_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("planning_periods.id"), nullable=True
+    )
+
     department = relationship("Department", back_populates="budget_lines", lazy="selectin")
     scenario = relationship("Scenario", lazy="selectin")
+    planning_period = relationship("PlanningPeriod", lazy="selectin")
     creator = relationship("User", foreign_keys=[created_by], lazy="selectin")
     approver = relationship("User", foreign_keys=[approved_by], lazy="selectin")

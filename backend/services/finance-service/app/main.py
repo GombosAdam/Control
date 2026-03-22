@@ -124,6 +124,7 @@ from app.api.scenarios.router import router as scenarios_router
 from app.api.departments.router import router as departments_router
 from app.api.admin.router import router as admin_router
 from app.api.reports.router import router as reports_router
+from app.api.planning_periods.router import router as planning_periods_router
 
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(dashboard_router, prefix="/api/v1/dashboard", tags=["Dashboard"])
@@ -135,6 +136,7 @@ app.include_router(scenarios_router, prefix="/api/v1/scenarios", tags=["Scenario
 app.include_router(departments_router, prefix="/api/v1/departments", tags=["Departments"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(reports_router, prefix="/api/v1/reports", tags=["Reports"])
+app.include_router(planning_periods_router, prefix="/api/v1/planning-periods", tags=["Planning Periods"])
 
 
 @app.get("/")

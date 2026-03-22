@@ -395,6 +395,7 @@ class BudgetService:
             "plan_type": line.plan_type.value if hasattr(line.plan_type, 'value') else line.plan_type,
             "scenario_id": line.scenario_id,
             "scenario_name": line.scenario.name if line.scenario else None,
+            "planning_period_id": line.planning_period_id,
             "created_by": line.created_by,
             "creator_name": line.creator.name if line.creator and hasattr(line.creator, 'name') else (line.creator.email if line.creator else None),
             "approved_by": line.approved_by,
@@ -407,7 +408,8 @@ class BudgetService:
     async def create_year_plan(db: AsyncSession, year: int, source_year: int | None,
                                adjustment_pct: float, department_id: str | None,
                                plan_type: str, scenario_id: str | None,
-                               user_id: str) -> dict:
+                               user_id: str, start_month: int = 1, end_month: int = 12,
+                               planning_period_id: str | None = None) -> dict:
         created = 0
         if source_year:
             # Copy from source year
@@ -422,6 +424,9 @@ class BudgetService:
             source_lines = result.scalars().all()
 
             for sl in source_lines:
+                src_month_int = int(sl.period.split("-")[1])
+                if src_month_int < start_month or src_month_int > end_month:
+                    continue
                 src_month = sl.period.split("-")[1]
                 new_period = f"{year}-{src_month}"
                 # Duplicate check
@@ -447,6 +452,7 @@ class BudgetService:
                     sort_order=sl.sort_order,
                     plan_type=plan_type,
                     scenario_id=scenario_id or sl.scenario_id,
+                    planning_period_id=planning_period_id,
                     created_by=user_id,
                 )
                 db.add(new_line)
@@ -458,7 +464,7 @@ class BudgetService:
                 })
                 created += 1
         else:
-            # Create placeholder lines for 12 months × 6 categories
+            # Create placeholder lines for months × 6 categories
             categories = [
                 ("revenue", "REV-001", "Bevétel", 0),
                 ("cogs", "COGS-001", "Közvetlen költség", 10),
@@ -467,7 +473,7 @@ class BudgetService:
                 ("interest", "INT-001", "Kamatköltség", 40),
                 ("tax", "TAX-001", "Adó", 50),
             ]
-            for m in range(1, 13):
+            for m in range(start_month, end_month + 1):
                 period = f"{year}-{m:02d}"
                 for cat, code, name, sort in categories:
                     dup_filter = [
@@ -500,6 +506,7 @@ class BudgetService:
                         sort_order=sort,
                         plan_type=plan_type,
                         scenario_id=scenario_id,
+                        planning_period_id=planning_period_id,
                         created_by=user_id,
                     )
                     db.add(new_line)

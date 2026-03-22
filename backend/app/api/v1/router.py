@@ -14,6 +14,7 @@ from app.api.v1.reconciliation.router import router as reconciliation_router
 from app.api.v1.controlling.router import router as controlling_router
 from app.api.v1.scenarios.router import router as scenarios_router
 from app.api.v1.chat.router import router as chat_router
+from app.api.v1.planning_periods.router import router as planning_periods_router
 
 api_router = APIRouter()
 
@@ -32,3 +33,4 @@ api_router.include_router(reconciliation_router, prefix="/reconciliation", tags=
 api_router.include_router(controlling_router, prefix="/controlling", tags=["Controlling"])
 api_router.include_router(scenarios_router, prefix="/scenarios", tags=["Scenarios"])
 api_router.include_router(chat_router, prefix="/chat", tags=["Chat"])
+api_router.include_router(planning_periods_router, prefix="/planning-periods", tags=["Planning Periods"])

@@ -13,6 +13,6 @@ export const controllingApi = {
   ebitda: (params?: { department_id?: string; period?: string }) =>
     api.get('/controlling/ebitda', { params }).then(r => r.data),
 
-  pnlWaterfall: (params?: { department_id?: string; period?: string; status?: string; period_from?: string; period_to?: string; plan_type?: string; scenario_id?: string }) =>
+  pnlWaterfall: (params?: { department_id?: string; period?: string; status?: string; period_from?: string; period_to?: string; plan_type?: string; scenario_id?: string; planning_period_id?: string }) =>
     api.get('/controlling/pnl', { params }).then(r => r.data),
 };

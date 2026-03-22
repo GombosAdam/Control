@@ -37,7 +37,7 @@ export function ControllingPage() {
 
       {/* Quick links */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px', marginBottom: '24px' }}>
-        <NavCard title="EBITDA" desc="Eredmény osztályonként és időszakonként" icon={<BarChart3 size={20} />} color="#1e3a5f" onClick={() => navigate('/controlling/ebitda')} />
+        <NavCard title="Tervezés" desc="P&L tervezés — tervezési időszakok kezelése" icon={<BarChart3 size={20} />} color="#1e3a5f" onClick={() => navigate('/controlling/ebitda')} />
         <NavCard title="Lekötések" desc="Nyitott megrendelések és kötelezettségvállalások" icon={<GitCompareArrows size={20} />} color="#06B6D4" onClick={() => navigate('/controlling/commitment')} />
       </div>
 
