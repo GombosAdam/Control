@@ -89,9 +89,10 @@ export const modules: Record<string, ModuleDefinition> = {
     nameKey: 'modules.invoices',
     color: '#10B981',
     icon: FileText,
-    routes: ['/invoices'],
+    routes: ['/invoices', '/dashboard'],
     service: 'pipeline',
     items: [
+      { icon: LayoutDashboard, path: '/dashboard', labelKey: 'nav.dashboard' },
       { icon: FileText, path: '/invoices', labelKey: 'nav.invoices' },
       { icon: Upload, path: '/invoices/upload', labelKey: 'nav.upload' },
       { icon: Loader, path: '/invoices/processing', labelKey: 'nav.processing' },
@@ -136,16 +137,6 @@ export const modules: Record<string, ModuleDefinition> = {
   },
 
   // ── Pénzügy (finance-service) ──
-  dashboard: {
-    nameKey: 'modules.dashboard',
-    color: '#3B82F6',
-    icon: LayoutDashboard,
-    routes: ['/dashboard'],
-    service: 'finance',
-    items: [
-      { icon: LayoutDashboard, path: '/dashboard', labelKey: 'nav.dashboard' },
-    ],
-  },
   budget: {
     nameKey: 'modules.budget',
     color: '#F97316',
