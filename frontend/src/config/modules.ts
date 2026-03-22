@@ -63,7 +63,7 @@ export const modules: Record<string, ModuleDefinition> = {
     color: '#22C55E',
     icon: Cpu,
     routes: ['/admin/gpu'],
-    service: 'ai',
+    service: 'pipeline',
     roles: ['admin'],
     items: [
       { icon: Cpu, path: '/admin/gpu', labelKey: 'nav.gpu' },
@@ -217,21 +217,24 @@ export type ModuleKey = keyof typeof modules;
 /** Service panel definitions for the launcher */
 export const servicePanels = [
   {
-    key: 'ai' as const,
-    labelKey: 'launcher.ai',
-    color: '#3B82F6',
-    description: 'launcher.aiDesc',
-  },
-  {
     key: 'pipeline' as const,
     labelKey: 'launcher.pipeline',
     color: '#10B981',
     description: 'launcher.pipelineDesc',
+    defaultOpen: true,
+  },
+  {
+    key: 'ai' as const,
+    labelKey: 'launcher.ai',
+    color: '#3B82F6',
+    description: 'launcher.aiDesc',
+    defaultOpen: false,
   },
   {
     key: 'finance' as const,
     labelKey: 'launcher.finance',
     color: '#F97316',
     description: 'launcher.financeDesc',
+    defaultOpen: false,
   },
 ];

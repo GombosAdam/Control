@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LogOut } from 'lucide-react';
+import { LogOut, ChevronRight, ChevronDown } from 'lucide-react';
 import { modules, servicePanels, type ModuleKey } from '../../config/modules';
 import { useAuthStore } from '../../stores/authStore';
 import type { UserRole } from '../../types/user';
@@ -145,87 +145,135 @@ export function Sidebar() {
         </span>
       </button>
 
-      {/* Module Launcher Overlay — 3 service panels */}
-      {showModules && (() => {
-        const visibleKeys = new Set(visibleModules.map(([k]) => k));
+      {/* Module Launcher Overlay — accordion panels */}
+      {showModules && <LauncherOverlay
+        visibleModules={visibleModules}
+        onClose={() => setShowModules(false)}
+        t={t}
+      />}
+    </div>
+  );
+}
 
-        return (
-          <div
-            style={{
-              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-              background: 'rgba(0,0,0,0.5)', zIndex: 200,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-            onClick={() => setShowModules(false)}
-          >
+
+function LauncherOverlay({
+  visibleModules,
+  onClose,
+  t,
+}: {
+  visibleModules: [string, (typeof modules)[string]][];
+  onClose: () => void;
+  t: (key: string) => string;
+}) {
+  const visibleKeys = new Set(visibleModules.map(([k]) => k));
+  const [openPanels, setOpenPanels] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    servicePanels.forEach(p => { if (p.defaultOpen) initial.add(p.key); });
+    return initial;
+  });
+
+  const togglePanel = (key: string) => {
+    setOpenPanels(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.5)', zIndex: 200,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: '#fff', borderRadius: '16px', padding: '24px',
+          maxWidth: '420px', width: '100%',
+          display: 'flex', flexDirection: 'column', gap: '8px',
+          maxHeight: '80vh', overflowY: 'auto',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {servicePanels.map((panel) => {
+          const panelModules = Object.entries(modules)
+            .filter(([k, mod]) => mod.service === panel.key && visibleKeys.has(k))
+            .map(([k, mod]) => ({ key: k, mod }));
+
+          if (panelModules.length === 0) return null;
+
+          const isOpen = openPanels.has(panel.key);
+
+          return (
             <div
+              key={panel.key}
               style={{
-                background: '#fff', borderRadius: '16px', padding: '24px',
-                maxWidth: '820px', width: '100%',
-                display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px',
+                background: '#fafafa', borderRadius: '12px',
+                borderTop: `3px solid ${panel.color}`,
+                overflow: 'hidden',
               }}
-              onClick={(e) => e.stopPropagation()}
             >
-              {servicePanels.map((panel) => {
-                const panelModules = Object.entries(modules)
-                  .filter(([k, mod]) => mod.service === panel.key && visibleKeys.has(k))
-                  .map(([k, mod]) => ({ key: k, mod }));
-
-                if (panelModules.length === 0) return null;
-
-                return (
-                  <div
-                    key={panel.key}
-                    style={{
-                      background: '#fafafa', borderRadius: '12px', padding: '20px 16px',
-                      borderTop: `3px solid ${panel.color}`,
-                    }}
-                  >
-                    <div style={{
-                      fontSize: '13px', fontWeight: 700, color: panel.color,
-                      marginBottom: '4px',
-                    }}>
-                      {t(panel.labelKey)}
-                    </div>
-                    <div style={{
-                      fontSize: '10px', color: '#999', marginBottom: '16px', lineHeight: 1.4,
-                    }}>
-                      {t(panel.description)}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      {panelModules.map(({ key, mod }) => (
-                        <Link
-                          key={key}
-                          to={mod.items[0]?.path || '/'}
-                          onClick={() => setShowModules(false)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '10px',
-                            padding: '8px 10px', borderRadius: '8px',
-                            textDecoration: 'none', color: '#333', transition: 'all 150ms',
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = '#f0f0f0')}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                        >
-                          <div style={{
-                            width: '36px', height: '36px', borderRadius: '8px',
-                            background: mod.color, display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', color: '#fff', flexShrink: 0,
-                          }}>
-                            <mod.icon size={18} />
-                          </div>
-                          <span style={{ fontSize: '12px', fontWeight: 500 }}>
-                            {t(mod.nameKey)}
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
+              {/* Panel header — clickable */}
+              <button
+                onClick={() => togglePanel(panel.key)}
+                style={{
+                  width: '100%', padding: '14px 16px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: panel.color, textAlign: 'left' }}>
+                    {t(panel.labelKey)}
                   </div>
-                );
-              })}
+                  <div style={{ fontSize: '10px', color: '#999', textAlign: 'left', lineHeight: 1.4 }}>
+                    {t(panel.description)}
+                  </div>
+                </div>
+                {isOpen
+                  ? <ChevronDown size={16} style={{ color: '#999', flexShrink: 0 }} />
+                  : <ChevronRight size={16} style={{ color: '#999', flexShrink: 0 }} />
+                }
+              </button>
+
+              {/* Panel content — modules */}
+              {isOpen && (
+                <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {panelModules.map(({ key, mod }) => (
+                    <Link
+                      key={key}
+                      to={mod.items[0]?.path || '/'}
+                      onClick={onClose}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: '8px 10px', borderRadius: '8px',
+                        textDecoration: 'none', color: '#333', transition: 'all 150ms',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f0f0f0')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <div style={{
+                        width: '36px', height: '36px', borderRadius: '8px',
+                        background: mod.color, display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', color: '#fff', flexShrink: 0,
+                      }}>
+                        <mod.icon size={18} />
+                      </div>
+                      <span style={{ fontSize: '12px', fontWeight: 500 }}>
+                        {t(mod.nameKey)}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        );
-      })()}
+          );
+        })}
+      </div>
     </div>
   );
 }
