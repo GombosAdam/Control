@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.config import settings
-from app.api.chat.formatter import format_answer
+from app.api.chat.formatter import format_answer, detect_chart_data
 from app.api.chat.schemas import ChatResponse
 from app.api.chat.semantic_schema import DDL_SCHEMA, BUSINESS_RULES, FEW_SHOT_EXAMPLES
 from common.models.audit import AuditLog
@@ -374,6 +374,8 @@ class ChatService:
         except Exception:
             logger.debug("Failed to queue RAG store task")
 
+        chart = detect_chart_data(question, results, row_count)
+
         return ChatResponse(
             answer=answer,
             sql=sql,
@@ -382,4 +384,5 @@ class ChatService:
             sql_generation_ms=sql_gen_ms,
             retry_count=retry_count,
             model_used=settings.SQL_MODEL,
+            chart_data=chart,
         )

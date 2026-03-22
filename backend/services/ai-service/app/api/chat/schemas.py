@@ -14,3 +14,4 @@ class ChatResponse(BaseModel):
     sql_generation_ms: int | None = None
     retry_count: int = 0
     model_used: str | None = None
+    chart_data: dict | None = None

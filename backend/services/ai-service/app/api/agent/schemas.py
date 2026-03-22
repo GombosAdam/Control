@@ -17,3 +17,4 @@ class AgentResponse(BaseModel):
     response_time_ms: int | None = None
     model_used: str | None = None
     error: str | None = None
+    chart_data: dict | None = None

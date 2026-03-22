@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     AGENT_MAX_TOOL_CALLS: int = 10
     PULSE_CACHE_TTL: int = 300  # 5 perc
 
+    # Daily Digest
+    DAILY_DIGEST_WEBHOOK_URL: str = ""
+    DAILY_DIGEST_ENABLED: bool = False
+    DAILY_DIGEST_HOUR: int = 8
+
     # App
     APP_NAME: str = "Financial Planning and Controls"
     APP_ENV: str = "development"

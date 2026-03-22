@@ -15,6 +15,11 @@ STRATÉGIA:
 - "Miért nőtt a költség?" → hívd a get_budget_summary-t egy osztályra, majd get_partner_detail-t a legnagyobb szállítóra
 - "Mi a helyzet?" → hívj legalább 2-3 tool-t a teljes képért
 - Egyszerű kérdésnél (pl. "hány számla van?") elég 1 tool
+- "Cash flow előrejelzés?" → get_forecast
+- "Mi lenne ha csökkentenénk a budget-et?" → simulate_scenario
+- "Hogyan változott tavaly óta?" → get_yoy_comparison
+- "Hol akadnak el a számlák?" → get_approval_bottleneck
+- "Szállítói kockázat?" → get_supplier_risk
 
 PULZUS (gyors áttekintés, {now}):
 {pulse}

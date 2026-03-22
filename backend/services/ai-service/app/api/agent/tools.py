@@ -101,4 +101,77 @@ TOOL_DEFINITIONS = [
             "required": ["query"],
         },
     },
+    {
+        "name": "get_forecast",
+        "description": "Cash flow előrejelzés 30/60/90 napra: várható bevétel, kiadás és nettó pénzáramlás. Historikus átlag + nyitott PO-k + budget forecast alapján.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
+        "name": "simulate_scenario",
+        "description": "What-if szimuláció: mi történne ha egy osztály budget-jét megváltoztatnánk. Kiszámolja az EBITDA, net income és margin változást. NEM ír adatbázisba.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "department": {
+                    "type": "string",
+                    "description": "Osztály neve (pl. 'IT', 'Marketing')",
+                },
+                "budget_change_pct": {
+                    "type": "number",
+                    "description": "Budget változás százalékban (pl. -20 = 20%-os csökkentés, +15 = 15%-os növelés)",
+                },
+                "pnl_category": {
+                    "type": "string",
+                    "description": "P&L kategória szűrő (opcionális): 'revenue', 'cogs', 'opex', 'depreciation', 'interest', 'tax'",
+                },
+            },
+            "required": ["department", "budget_change_pct"],
+        },
+    },
+    {
+        "name": "get_yoy_comparison",
+        "description": "Év/év (YoY) összehasonlítás: bevétel, kiadás, EBITDA és számlaszám változás az előző év azonos hónapjához képest.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "department": {
+                    "type": "string",
+                    "description": "Osztály neve (opcionális)",
+                },
+                "period": {
+                    "type": "string",
+                    "description": "Periódus YYYY-MM formátumban (alapértelmezett: aktuális hónap)",
+                },
+            },
+        },
+    },
+    {
+        "name": "get_approval_bottleneck",
+        "description": "Jóváhagyási folyamat szűk keresztmetszet elemzés: átlagos idő lépésenként, lassú döntéshozók, függő jóváhagyások.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "period": {
+                    "type": "string",
+                    "description": "Periódus YYYY-MM formátumban (opcionális)",
+                },
+            },
+        },
+    },
+    {
+        "name": "get_supplier_risk",
+        "description": "Szállítói kockázat elemzés: átlagos fizetési napok, függőségi kockázat (>20% részesedés), ártrendek. Opcionálisan egy szállítóra szűrhető.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "supplier": {
+                    "type": "string",
+                    "description": "Szállító neve (opcionális — ha üres, összesített elemzés)",
+                },
+            },
+        },
+    },
 ]

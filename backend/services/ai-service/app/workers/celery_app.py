@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 from common.config import settings
 
 celery_app = Celery(
@@ -9,6 +10,7 @@ celery_app = Celery(
         "app.workers.tasks.calculate_metrics",
         "app.workers.tasks.intelligence",
         "app.workers.tasks.store_chat_example",
+        "app.workers.tasks.daily_digest",
     ],
 )
 
@@ -23,4 +25,10 @@ celery_app.conf.update(
     task_soft_time_limit=300,
     task_time_limit=360,
     task_default_queue="metrics",
+    beat_schedule={
+        "daily-digest": {
+            "task": "send_daily_digest",
+            "schedule": crontab(hour=settings.DAILY_DIGEST_HOUR, minute=0),
+        },
+    },
 )

@@ -67,16 +67,26 @@ async def get_pulse(db: AsyncSession) -> str:
     po_count = int(m.get("po_open_count", 0))
     po_amount = m.get("po_open_amount", 0)
 
-    pulse = (
+    forecast_net_30d = m.get("forecast_net_cash_30d", 0)
+    avg_pay_days = m.get("avg_payment_days", 0)
+    dep_risk_count = int(m.get("supplier_dependency_risk_count", 0))
+
+    pulse_lines = [
         f"Számlák: {invoice_total} db ({_format_huf(invoice_amount)}) | "
-        f"Feldolgozott: {processed_count}, feldolgozatlan: {unprocessed_count}\n"
-        f"Lejárt: {overdue_count} ({_format_huf(overdue_amount)})\n"
-        f"Budget felhasználás: {utilization}% | Eltérés: {_format_huf(budget_variance)}\n"
-        f"Túllépő osztályok: {over_budget_count} db\n"
-        f"Anomáliák: duplikátok {dup_count}, hibaarány {error_rate}%\n"
-        f"Nyitott megrendelések: {po_count} db ({_format_huf(po_amount)})\n"
-        f"Frissítve: {period}"
-    )
+        f"Feldolgozott: {processed_count}, feldolgozatlan: {unprocessed_count}",
+        f"Lejárt: {overdue_count} ({_format_huf(overdue_amount)})",
+        f"Budget felhasználás: {utilization}% | Eltérés: {_format_huf(budget_variance)}",
+        f"Túllépő osztályok: {over_budget_count} db",
+        f"Anomáliák: duplikátok {dup_count}, hibaarány {error_rate}%",
+        f"Nyitott megrendelések: {po_count} db ({_format_huf(po_amount)})",
+        f"Előrejelzés 30 nap: nettó ~{_format_huf(forecast_net_30d)}",
+    ]
+    if dep_risk_count > 0:
+        pulse_lines.append(
+            f"Szállítói kockázat: {dep_risk_count} magas függőségű, {avg_pay_days:.0f} nap"
+        )
+    pulse_lines.append(f"Frissítve: {period}")
+    pulse = "\n".join(pulse_lines)
 
     try:
         r = await _get_redis()

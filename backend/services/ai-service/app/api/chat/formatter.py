@@ -108,6 +108,75 @@ def _format_date(value: date | datetime) -> str:
     return f"{value.year}. {months[value.month]} {value.day}."
 
 
+_TIME_KEYWORDS = {"period", "honap", "datum", "date", "month", "year", "ev", "het", "week", "quarter"}
+_CATEGORY_KEYWORDS = {"name", "nev", "osztaly", "department", "partner", "status", "kategoria", "category", "step_name", "role"}
+
+
+def detect_chart_data(question: str, results: list[dict], row_count: int) -> dict | None:
+    """
+    Detect if results are suitable for chart visualization.
+    Returns chart_data dict or None.
+    """
+    if row_count < 2 or not results:
+        return None
+
+    headers = list(results[0].keys())
+    if len(headers) < 2:
+        return None
+
+    first_col = headers[0].lower()
+    # Find numeric columns
+    numeric_cols = [
+        h for h in headers
+        if any(isinstance(r.get(h), (int, float)) for r in results if r.get(h) is not None)
+    ]
+    if not numeric_cols:
+        return None
+
+    labels = [str(r.get(headers[0], "")) for r in results]
+
+    # Time-series → line chart
+    if first_col in _TIME_KEYWORDS or any(kw in first_col for kw in _TIME_KEYWORDS):
+        datasets = []
+        for col in numeric_cols:
+            if col == headers[0]:
+                continue
+            datasets.append({
+                "label": col.replace("_", " ").capitalize(),
+                "data": [r.get(col, 0) or 0 for r in results],
+            })
+        if datasets:
+            return {"type": "line", "labels": labels, "datasets": datasets}
+
+    # Category + number → bar chart
+    if first_col in _CATEGORY_KEYWORDS or any(kw in first_col for kw in _CATEGORY_KEYWORDS):
+        datasets = []
+        for col in numeric_cols:
+            if col == headers[0]:
+                continue
+            datasets.append({
+                "label": col.replace("_", " ").capitalize(),
+                "data": [r.get(col, 0) or 0 for r in results],
+            })
+        if datasets:
+            return {"type": "bar", "labels": labels, "datasets": datasets}
+
+    # Small result set with label + single count → pie chart
+    if row_count <= 10 and len(numeric_cols) == 1:
+        num_col = numeric_cols[0]
+        if num_col != headers[0]:
+            return {
+                "type": "pie",
+                "labels": labels,
+                "datasets": [{
+                    "label": num_col.replace("_", " ").capitalize(),
+                    "data": [r.get(num_col, 0) or 0 for r in results],
+                }],
+            }
+
+    return None
+
+
 def _build_table(results: list[dict]) -> str:
     """Build a markdown table from query results."""
     if not results:

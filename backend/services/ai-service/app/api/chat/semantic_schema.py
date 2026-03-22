@@ -202,7 +202,7 @@ CREATE TABLE cfo_metrics (
     calculated_at TIMESTAMP NOT NULL,
     UNIQUE(metric_key, period)
 );
--- cfo_metrics tartalma: elokalkulalt CFO metrikak (30 db, oranként frissul)
+-- cfo_metrics tartalma: elokalkulalt CFO metrikak (46 db, oranként frissul)
 -- Hasznald a cfo_metrics tablat ha penzugyi osszesitesrol, KPI-rol, trendrol kerdeznek!
 -- Metric kulcsok: invoice_total_count, invoice_processed_count, invoice_unprocessed_count,
 --   invoice_rejected_count, invoice_total_gross_amount, invoice_processed_gross_amount,
@@ -211,7 +211,13 @@ CREATE TABLE cfo_metrics (
 --   top_supplier_amount, active_supplier_count, supplier_concentration_top5_pct, avg_invoice_amount,
 --   avg_processing_time_hours, avg_approval_time_hours, duplicate_invoice_count, error_rate_pct,
 --   pnl_revenue, pnl_ebitda, pnl_net_income, dept_highest_spend_amount, dept_count_over_budget,
---   po_open_count, po_open_amount, invoice_amount_mom_change_pct
+--   po_open_count, po_open_amount, invoice_amount_mom_change_pct,
+--   forecast_cash_in_30d, forecast_cash_in_60d, forecast_cash_in_90d,
+--   forecast_cash_out_30d, forecast_cash_out_60d, forecast_cash_out_90d,
+--   forecast_net_cash_30d, forecast_net_cash_60d, forecast_net_cash_90d,
+--   revenue_yoy_change_pct, expense_yoy_change_pct, ebitda_yoy_change_pct,
+--   invoice_count_yoy_change_pct,
+--   avg_payment_days, supplier_dependency_risk_count, supplier_price_trend_pct
 """.strip()
 
 BUSINESS_RULES = """
@@ -355,5 +361,23 @@ FEW_SHOT_EXAMPLES: list[dict[str, str]] = [
     {
         "question": "Budget elteres havonta 2024-ben",
         "sql": "SELECT period, value AS elteres FROM cfo_metrics WHERE metric_key = 'budget_variance' AND period LIKE '2024%' ORDER BY period LIMIT 12;",
+    },
+    # === Forecast few-shots ===
+    {
+        "question": "Cash flow elorejelezes a kovetkezo 30 napra",
+        "sql": "SELECT metric_key, value FROM cfo_metrics WHERE metric_key IN ('forecast_cash_in_30d','forecast_cash_out_30d','forecast_net_cash_30d') AND period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') LIMIT 10;",
+    },
+    {
+        "question": "Mennyi lesz a varhato netto cash flow 90 napon belul?",
+        "sql": "SELECT value AS netto_cash_90d FROM cfo_metrics WHERE metric_key = 'forecast_net_cash_90d' AND period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') LIMIT 1;",
+    },
+    # === YoY few-shots ===
+    {
+        "question": "Hogyan valtozott a bevetel az elozo evhez kepest?",
+        "sql": "SELECT value AS bevetel_yoy_pct FROM cfo_metrics WHERE metric_key = 'revenue_yoy_change_pct' AND period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') LIMIT 1;",
+    },
+    {
+        "question": "EBITDA valtozas tavaly ota",
+        "sql": "SELECT value AS ebitda_yoy_pct FROM cfo_metrics WHERE metric_key = 'ebitda_yoy_change_pct' AND period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') LIMIT 1;",
     },
 ]
