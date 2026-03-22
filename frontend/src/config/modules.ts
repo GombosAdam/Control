@@ -166,7 +166,7 @@ export const modules: Record<string, ModuleDefinition> = {
     color: '#0EA5E9',
     icon: BookOpen,
     routes: ['/accounting'],
-    service: 'finance',
+    service: 'pipeline',
     roles: ['admin', 'cfo', 'accountant'],
     items: [
       { icon: BookOpen, path: '/accounting', labelKey: 'nav.accounting' },
