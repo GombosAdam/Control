@@ -137,18 +137,6 @@ export const modules: Record<string, ModuleDefinition> = {
   },
 
   // ── Pénzügy (finance-service) ──
-  budget: {
-    nameKey: 'modules.budget',
-    color: '#F97316',
-    icon: Wallet,
-    routes: ['/budget'],
-    service: 'finance',
-    roles: ['admin', 'cfo', 'department_head', 'accountant'],
-    items: [
-      { icon: Wallet, path: '/budget', labelKey: 'nav.budget' },
-      { icon: Target, path: '/controlling/ebitda', labelKey: 'nav.budgetPlanning' },
-    ],
-  },
   orders: {
     nameKey: 'modules.orders',
     color: '#06B6D4',
@@ -182,8 +170,7 @@ export const modules: Record<string, ModuleDefinition> = {
     service: 'finance',
     roles: ['admin', 'cfo', 'department_head'],
     items: [
-      { icon: Target, path: '/controlling', labelKey: 'nav.controlling' },
-      { icon: BarChart3, path: '/controlling/ebitda', labelKey: 'nav.ebitda' },
+      { icon: Target, path: '/controlling/ebitda', labelKey: 'nav.planning' },
       { icon: GitCompareArrows, path: '/controlling/commitment', labelKey: 'nav.commitment' },
     ],
   },
