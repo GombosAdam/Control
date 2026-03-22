@@ -1,0 +1,115 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  test:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend type check
+        working-directory: frontend
+        run: |
+          npm ci
+          npx tsc --noEmit
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Backend syntax check
+        run: |
+          python -m py_compile backend/common/common/config.py
+          python -m py_compile backend/services/ai-service/app/api/agent/service.py
+          python -m py_compile backend/services/ai-service/app/api/agent/tool_executor.py
+          python -m py_compile backend/services/ai-service/app/api/agent/router.py
+          python -m py_compile backend/services/ai-service/app/api/chat/service.py
+          python -m py_compile backend/services/finance-service/app/main.py
+          python -m py_compile backend/services/finance-service/app/api/admin/gpu.py
+          echo "All Python files compile OK"
+
+  deploy:
+    name: Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.APP_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync files to server
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude '__pycache__' \
+            --exclude '.venv' \
+            --exclude 'dist' \
+            --exclude 'backend/data' \
+            --exclude '.env' \
+            --exclude '.env.prod' \
+            --exclude 'nginx/certbot' \
+            ./ ec2-user@${{ secrets.APP_HOST }}:~/invoice-manager/
+
+      - name: Create env file and deploy
+        run: |
+          ssh -i ~/.ssh/deploy_key ec2-user@${{ secrets.APP_HOST }} << 'DEPLOY'
+          cd ~/invoice-manager
+
+          # Write .env from secrets
+          cat > .env << ENVEOF
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          GPU_PRIVATE_IP=${{ secrets.GPU_PRIVATE_IP }}
+          ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          ENVEOF
+
+          # Build and deploy
+          sg docker -c "docker compose -f docker-compose.prod.yml --env-file .env up -d --build"
+
+          # Wait for services
+          sleep 10
+
+          # Restart nginx to pick up any config changes
+          sg docker -c "docker compose -f docker-compose.prod.yml restart nginx"
+
+          # Health check
+          sleep 5
+          SERVICES=$(sg docker -c "docker compose -f docker-compose.prod.yml ps --format '{{.Name}} {{.Status}}'" | grep -c "Up")
+          echo "Services running: $SERVICES"
+          if [ "$SERVICES" -lt 8 ]; then
+            echo "WARNING: Expected 8+ services, only $SERVICES running"
+            sg docker -c "docker compose -f docker-compose.prod.yml ps"
+            exit 1
+          fi
+          echo "Deploy successful!"
+          DEPLOY
+
+      - name: Smoke test
+        run: |
+          sleep 5
+          STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://invoice.rhcdemoaccount2.com/)
+          echo "Frontend: HTTP $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "Smoke test failed!"
+            exit 1
+          fi
+          echo "Smoke test passed"
