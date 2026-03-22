@@ -20,6 +20,9 @@ STRATÉGIA:
 - "Hogyan változott tavaly óta?" → get_yoy_comparison
 - "Hol akadnak el a számlák?" → get_approval_bottleneck
 - "Szállítói kockázat?" → get_supplier_risk
+- "Korosítási jelentés?" / "Aging report?" / "Melyik partner nem fizet?" → get_aging_report
+- "Budget trend?" / "Burn rate?" / "Mikor fogy el a keret?" → get_budget_trend
+- "DSO?" / "DPO?" / "Forgótőke?" / "Milyen gyorsan fizetnek a vevők?" → get_working_capital
 
 PULZUS (gyors áttekintés, {now}):
 {pulse}

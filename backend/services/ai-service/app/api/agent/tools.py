@@ -174,4 +174,42 @@ TOOL_DEFINITIONS = [
             },
         },
     },
+    {
+        "name": "get_aging_report",
+        "description": "Korosítási jelentés: lejárt számlák korbontása (0-30, 31-60, 61-90, 90+ nap). Partner szűrő nélkül top 5 partnert is mutat.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "partner": {
+                    "type": "string",
+                    "description": "Partner/szállító neve (opcionális — ha üres, összesített + top 5 partner)",
+                },
+            },
+        },
+    },
+    {
+        "name": "get_budget_trend",
+        "description": "Budget felhasználási trend: havi tervezett vs tényleges, kihasználtság %, burn rate előrejelzés. Osztályra és időszakra szűrhető.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "department": {
+                    "type": "string",
+                    "description": "Osztály neve (opcionális)",
+                },
+                "months": {
+                    "type": "integer",
+                    "description": "Visszatekintés hónapokban (alapértelmezett: 6, maximum: 12)",
+                },
+            },
+        },
+    },
+    {
+        "name": "get_working_capital",
+        "description": "Forgótőke mutatók: DSO (vevői fizetési napok), DPO (szállítói fizetési napok), CCC (pénzforgási ciklus). Megmutatja milyen gyorsan mozog a pénz.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
 ]

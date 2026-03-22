@@ -157,6 +157,21 @@ def send_daily_digest():
                     "ebitda_change_pct": m.get("ebitda_yoy_change_pct", 0),
                     "invoice_count_change_pct": m.get("invoice_count_yoy_change_pct", 0),
                 },
+                "aging": {
+                    "0_30d_count": int(m.get("aging_0_30d_count", 0)),
+                    "0_30d_amount": m.get("aging_0_30d_amount", 0),
+                    "31_60d_count": int(m.get("aging_31_60d_count", 0)),
+                    "31_60d_amount": m.get("aging_31_60d_amount", 0),
+                    "61_90d_count": int(m.get("aging_61_90d_count", 0)),
+                    "61_90d_amount": m.get("aging_61_90d_amount", 0),
+                    "90plus_count": int(m.get("aging_90plus_count", 0)),
+                    "90plus_amount": m.get("aging_90plus_amount", 0),
+                },
+                "working_capital": {
+                    "dso_days": m.get("dso_days", 0),
+                    "dpo_days": m.get("dpo_days", 0),
+                    "cash_conversion_cycle_days": m.get("cash_conversion_cycle_days", 0),
+                },
             },
         }
 

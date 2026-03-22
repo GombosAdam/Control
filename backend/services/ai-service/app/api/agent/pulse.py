@@ -71,10 +71,27 @@ async def get_pulse(db: AsyncSession) -> str:
     avg_pay_days = m.get("avg_payment_days", 0)
     dep_risk_count = int(m.get("supplier_dependency_risk_count", 0))
 
+    aging_0_30 = int(m.get("aging_0_30d_count", 0))
+    aging_31_60 = int(m.get("aging_31_60d_count", 0))
+    aging_61_90 = int(m.get("aging_61_90d_count", 0))
+    aging_90plus = int(m.get("aging_90plus_count", 0))
+    aging_90plus_amt = m.get("aging_90plus_amount", 0)
+
+    dso = m.get("dso_days", 0)
+    dpo = m.get("dpo_days", 0)
+    ccc = m.get("cash_conversion_cycle_days", 0)
+
+    overdue_line = f"Lejárt: {overdue_count} ({_format_huf(overdue_amount)})"
+    if overdue_count > 0:
+        overdue_line += (
+            f" | 0-30d: {aging_0_30}, 31-60d: {aging_31_60}, "
+            f"61-90d: {aging_61_90}, 90+d: {aging_90plus} ({_format_huf(aging_90plus_amt)})"
+        )
+
     pulse_lines = [
         f"Számlák: {invoice_total} db ({_format_huf(invoice_amount)}) | "
         f"Feldolgozott: {processed_count}, feldolgozatlan: {unprocessed_count}",
-        f"Lejárt: {overdue_count} ({_format_huf(overdue_amount)})",
+        overdue_line,
         f"Budget felhasználás: {utilization}% | Eltérés: {_format_huf(budget_variance)}",
         f"Túllépő osztályok: {over_budget_count} db",
         f"Anomáliák: duplikátok {dup_count}, hibaarány {error_rate}%",
@@ -85,6 +102,8 @@ async def get_pulse(db: AsyncSession) -> str:
         pulse_lines.append(
             f"Szállítói kockázat: {dep_risk_count} magas függőségű, {avg_pay_days:.0f} nap"
         )
+    if dso > 0 or dpo > 0:
+        pulse_lines.append(f"DSO: {dso:.0f} nap | DPO: {dpo:.0f} nap | CCC: {ccc:.0f} nap")
     pulse_lines.append(f"Frissítve: {period}")
     pulse = "\n".join(pulse_lines)
 

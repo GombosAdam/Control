@@ -202,7 +202,7 @@ CREATE TABLE cfo_metrics (
     calculated_at TIMESTAMP NOT NULL,
     UNIQUE(metric_key, period)
 );
--- cfo_metrics tartalma: elokalkulalt CFO metrikak (46 db, oranként frissul)
+-- cfo_metrics tartalma: elokalkulalt CFO metrikak (57 db, oranként frissul)
 -- Hasznald a cfo_metrics tablat ha penzugyi osszesitesrol, KPI-rol, trendrol kerdeznek!
 -- Metric kulcsok: invoice_total_count, invoice_processed_count, invoice_unprocessed_count,
 --   invoice_rejected_count, invoice_total_gross_amount, invoice_processed_gross_amount,
@@ -217,7 +217,10 @@ CREATE TABLE cfo_metrics (
 --   forecast_net_cash_30d, forecast_net_cash_60d, forecast_net_cash_90d,
 --   revenue_yoy_change_pct, expense_yoy_change_pct, ebitda_yoy_change_pct,
 --   invoice_count_yoy_change_pct,
---   avg_payment_days, supplier_dependency_risk_count, supplier_price_trend_pct
+--   avg_payment_days, supplier_dependency_risk_count, supplier_price_trend_pct,
+--   aging_0_30d_count, aging_0_30d_amount, aging_31_60d_count, aging_31_60d_amount,
+--   aging_61_90d_count, aging_61_90d_amount, aging_90plus_count, aging_90plus_amount,
+--   dso_days, dpo_days, cash_conversion_cycle_days
 """.strip()
 
 BUSINESS_RULES = """
@@ -379,5 +382,32 @@ FEW_SHOT_EXAMPLES: list[dict[str, str]] = [
     {
         "question": "EBITDA valtozas tavaly ota",
         "sql": "SELECT value AS ebitda_yoy_pct FROM cfo_metrics WHERE metric_key = 'ebitda_yoy_change_pct' AND period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') LIMIT 1;",
+    },
+    # === Aging few-shots ===
+    {
+        "question": "Hany szamla jart le 90 napnal regebben?",
+        "sql": "SELECT value AS lejart_90plus_db FROM cfo_metrics WHERE metric_key = 'aging_90plus_count' AND period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') LIMIT 1;",
+    },
+    {
+        "question": "Lejart szamlak korbontasa osszeg szerint",
+        "sql": "SELECT metric_key, value FROM cfo_metrics WHERE metric_key LIKE 'aging_%' AND period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') ORDER BY metric_key LIMIT 10;",
+    },
+    # === Budget trend few-shots ===
+    {
+        "question": "Budget felhasznalasi trend az utolso 6 honapban",
+        "sql": "SELECT bl.period, SUM(bl.planned_amount) AS terv, COALESCE((SELECT SUM(ae.amount) FROM accounting_entries ae WHERE ae.period = bl.period), 0) AS teny FROM budget_lines bl WHERE bl.plan_type = 'budget' AND bl.period >= TO_CHAR(CURRENT_DATE - INTERVAL '6 months', 'YYYY-MM') GROUP BY bl.period ORDER BY bl.period LIMIT 12;",
+    },
+    {
+        "question": "Mikor fogy el az eves budget?",
+        "sql": "SELECT bl.period, SUM(bl.planned_amount) AS terv, COALESCE((SELECT SUM(ae.amount) FROM accounting_entries ae WHERE ae.period = bl.period), 0) AS teny FROM budget_lines bl WHERE bl.plan_type = 'budget' AND bl.period LIKE TO_CHAR(CURRENT_DATE, 'YYYY') || '%' GROUP BY bl.period ORDER BY bl.period LIMIT 12;",
+    },
+    # === Working Capital few-shots ===
+    {
+        "question": "Mennyi a DSO es DPO?",
+        "sql": "SELECT metric_key, value FROM cfo_metrics WHERE metric_key IN ('dso_days','dpo_days','cash_conversion_cycle_days') AND period = TO_CHAR(CURRENT_DATE, 'YYYY-MM') LIMIT 10;",
+    },
+    {
+        "question": "Penzforgasi ciklus az elmult felev",
+        "sql": "SELECT period, value AS ccc_days FROM cfo_metrics WHERE metric_key = 'cash_conversion_cycle_days' ORDER BY period DESC LIMIT 6;",
     },
 ]

@@ -1,7 +1,8 @@
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, date
 
+from dateutil.relativedelta import relativedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.agent.http_client import service_client
@@ -25,6 +26,13 @@ def _sanitize_period(value: str) -> str | None:
     if _SAFE_PERIOD_RE.match(value):
         return value
     return None
+
+
+def _period_minus(period: str, months: int) -> str:
+    """Get period N months back."""
+    y, m = int(period[:4]), int(period[5:7])
+    d = date(y, m, 1) - relativedelta(months=months)
+    return d.strftime("%Y-%m")
 
 
 def _huf(value: float | int) -> str:
@@ -63,6 +71,12 @@ async def execute_tool(tool_name: str, arguments: dict, token: str, db: AsyncSes
                 return await _approval_bottleneck(arguments, db)
             case "get_supplier_risk":
                 return await _supplier_risk(arguments, db)
+            case "get_aging_report":
+                return await _aging_report(arguments, db)
+            case "get_budget_trend":
+                return await _budget_trend(arguments, db)
+            case "get_working_capital":
+                return await _working_capital(db)
             case _:
                 return f"Ismeretlen tool: {tool_name}"
     except Exception as e:
@@ -715,5 +729,248 @@ async def _supplier_risk(args: dict, db: AsyncSession) -> str:
     else:
         lines.append("")
         lines.append("✓ Nincs kiemelt kockázat.")
+
+    return "\n".join(lines)
+
+
+# === F8: Aging Report ===
+
+async def _aging_report(args: dict, db: AsyncSession) -> str:
+    partner_name = _sanitize_name(args.get("partner", "")) if args.get("partner") else None
+
+    base_where = "i.due_date < CURRENT_DATE AND i.due_date IS NOT NULL AND i.status NOT IN ('posted','rejected','error')"
+    partner_join = ""
+    partner_filter = ""
+    if partner_name:
+        partner_join = "JOIN partners p ON p.id = i.partner_id"
+        partner_filter = f"AND LOWER(p.name) LIKE LOWER('%{partner_name}%')"
+
+    try:
+        rows, _ = await _execute_sql(db, f"""
+            SELECT
+                SUM(CASE WHEN (CURRENT_DATE - i.due_date) BETWEEN 1 AND 30 THEN 1 ELSE 0 END) AS cnt_0_30,
+                COALESCE(SUM(CASE WHEN (CURRENT_DATE - i.due_date) BETWEEN 1 AND 30 THEN i.gross_amount ELSE 0 END), 0) AS amt_0_30,
+                SUM(CASE WHEN (CURRENT_DATE - i.due_date) BETWEEN 31 AND 60 THEN 1 ELSE 0 END) AS cnt_31_60,
+                COALESCE(SUM(CASE WHEN (CURRENT_DATE - i.due_date) BETWEEN 31 AND 60 THEN i.gross_amount ELSE 0 END), 0) AS amt_31_60,
+                SUM(CASE WHEN (CURRENT_DATE - i.due_date) BETWEEN 61 AND 90 THEN 1 ELSE 0 END) AS cnt_61_90,
+                COALESCE(SUM(CASE WHEN (CURRENT_DATE - i.due_date) BETWEEN 61 AND 90 THEN i.gross_amount ELSE 0 END), 0) AS amt_61_90,
+                SUM(CASE WHEN (CURRENT_DATE - i.due_date) > 90 THEN 1 ELSE 0 END) AS cnt_90plus,
+                COALESCE(SUM(CASE WHEN (CURRENT_DATE - i.due_date) > 90 THEN i.gross_amount ELSE 0 END), 0) AS amt_90plus
+            FROM invoices i {partner_join}
+            WHERE {base_where} {partner_filter}
+        """)
+    except Exception as e:
+        return f"Hiba a korosítási lekérdezésekor: {str(e)[:200]}"
+
+    r = rows[0] if rows else {}
+    cnt_0_30 = int(r.get("cnt_0_30", 0) or 0)
+    amt_0_30 = float(r.get("amt_0_30", 0) or 0)
+    cnt_31_60 = int(r.get("cnt_31_60", 0) or 0)
+    amt_31_60 = float(r.get("amt_31_60", 0) or 0)
+    cnt_61_90 = int(r.get("cnt_61_90", 0) or 0)
+    amt_61_90 = float(r.get("amt_61_90", 0) or 0)
+    cnt_90plus = int(r.get("cnt_90plus", 0) or 0)
+    amt_90plus = float(r.get("amt_90plus", 0) or 0)
+
+    total_count = cnt_0_30 + cnt_31_60 + cnt_61_90 + cnt_90plus
+    total_amount = amt_0_30 + amt_31_60 + amt_61_90 + amt_90plus
+
+    def _pct(part: float, whole: float) -> str:
+        if whole == 0:
+            return "0%"
+        return f"{part / whole * 100:.0f}%"
+
+    title = f"Korosítási jelentés ({partner_name})" if partner_name else "Korosítási jelentés (összesített)"
+    lines = [title]
+    lines.append(f"Összes lejárt: {total_count} db ({_huf(total_amount)})")
+    lines.append("")
+    lines.append(f"  0-30 nap:  {cnt_0_30} db | {_huf(amt_0_30)} ({_pct(amt_0_30, total_amount)})")
+    lines.append(f"  31-60 nap: {cnt_31_60} db | {_huf(amt_31_60)} ({_pct(amt_31_60, total_amount)})")
+    lines.append(f"  61-90 nap: {cnt_61_90} db | {_huf(amt_61_90)} ({_pct(amt_61_90, total_amount)})")
+    lines.append(f"  90+ nap:   {cnt_90plus} db | {_huf(amt_90plus)} ({_pct(amt_90plus, total_amount)})")
+
+    # Top 5 partners if no filter
+    if not partner_name:
+        try:
+            top_rows, _ = await _execute_sql(db, f"""
+                SELECT p.name, COUNT(i.id) AS cnt, COALESCE(SUM(i.gross_amount), 0) AS total
+                FROM invoices i
+                JOIN partners p ON p.id = i.partner_id
+                WHERE {base_where} AND i.gross_amount IS NOT NULL
+                GROUP BY p.name
+                ORDER BY total DESC
+                LIMIT 5
+            """)
+            if top_rows:
+                lines.append("")
+                lines.append("Top 5 partner lejárt összeg szerint:")
+                for i, tr in enumerate(top_rows, 1):
+                    lines.append(f"  {i}. {tr['name']}: {tr['cnt']} db, {_huf(tr['total'])}")
+        except Exception:
+            pass
+
+    return "\n".join(lines)
+
+
+# === F9: Budget Trend ===
+
+async def _budget_trend(args: dict, db: AsyncSession) -> str:
+    dept_name = _sanitize_name(args.get("department", "")) if args.get("department") else None
+    months = min(max(int(args.get("months", 6) or 6), 1), 12)
+    period = datetime.now().strftime("%Y-%m")
+    year = period[:4]
+    start_period = _period_minus(period, months - 1)
+
+    dept_join = ""
+    dept_filter = ""
+    dept_join_ae = ""
+    dept_filter_ae = ""
+    if dept_name:
+        dept_join = "JOIN departments d ON d.id = bl.department_id"
+        dept_filter = f"AND LOWER(d.name) LIKE LOWER('%{dept_name}%')"
+        dept_join_ae = "JOIN departments d ON d.id = ae.department_id"
+        dept_filter_ae = f"AND LOWER(d.name) LIKE LOWER('%{dept_name}%')"
+
+    # Monthly planned
+    try:
+        planned_rows, _ = await _execute_sql(db, f"""
+            SELECT bl.period, COALESCE(SUM(bl.planned_amount), 0) AS planned
+            FROM budget_lines bl {dept_join}
+            WHERE bl.plan_type = 'budget' AND bl.period >= '{start_period}' AND bl.period <= '{period}'
+            {dept_filter}
+            GROUP BY bl.period ORDER BY bl.period
+        """)
+    except Exception as e:
+        return f"Hiba a budget trend lekérdezésekor: {str(e)[:200]}"
+
+    # Monthly actual
+    try:
+        actual_rows, _ = await _execute_sql(db, f"""
+            SELECT ae.period, COALESCE(SUM(ae.amount), 0) AS actual
+            FROM accounting_entries ae {dept_join_ae}
+            WHERE ae.period >= '{start_period}' AND ae.period <= '{period}'
+            {dept_filter_ae}
+            GROUP BY ae.period ORDER BY ae.period
+        """)
+    except Exception as e:
+        return f"Hiba a tényleges költés lekérdezésekor: {str(e)[:200]}"
+
+    # Annual budget
+    try:
+        annual_rows, _ = await _execute_sql(db, f"""
+            SELECT COALESCE(SUM(bl.planned_amount), 0) AS annual_budget
+            FROM budget_lines bl {dept_join}
+            WHERE bl.plan_type = 'budget' AND bl.period LIKE '{year}%'
+            {dept_filter}
+        """)
+    except Exception as e:
+        return f"Hiba az éves budget lekérdezésekor: {str(e)[:200]}"
+
+    annual_budget = annual_rows[0]["annual_budget"] if annual_rows else 0
+    planned_map = {r["period"]: r["planned"] for r in planned_rows}
+    actual_map = {r["period"]: r["actual"] for r in actual_rows}
+
+    # Build monthly iteration
+    cumulative_planned = 0
+    cumulative_actual = 0
+    monthly_actuals = []
+
+    title = f"Budget trend: {dept_name}" if dept_name else "Budget trend (összesített)"
+    lines = [title]
+    lines.append(f"Időszak: {start_period} — {period}")
+    lines.append("")
+
+    # Iterate over each period
+    p = start_period
+    while p <= period:
+        planned_val = planned_map.get(p, 0)
+        actual_val = actual_map.get(p, 0)
+        cumulative_planned += planned_val
+        cumulative_actual += actual_val
+        monthly_actuals.append(actual_val)
+
+        util_pct = (actual_val / planned_val * 100) if planned_val else 0
+        cum_pct = (cumulative_actual / cumulative_planned * 100) if cumulative_planned else 0
+
+        lines.append(
+            f"  {p}: terv {_huf(planned_val)} | tény {_huf(actual_val)} | "
+            f"{util_pct:.1f}% | kum. {cum_pct:.1f}%"
+        )
+        # Next period
+        p = _period_minus(p, -1)
+
+    # Burn rate calculation
+    lines.append("")
+    if monthly_actuals and any(a > 0 for a in monthly_actuals):
+        avg_burn = sum(monthly_actuals) / len(monthly_actuals)
+        remaining_budget = annual_budget - cumulative_actual
+        if avg_burn > 0 and remaining_budget > 0:
+            months_remaining = remaining_budget / avg_burn
+            # Estimate month when budget runs out
+            exhaust_date = date(int(period[:4]), int(period[5:7]), 1) + relativedelta(months=int(months_remaining))
+            lines.append(
+                f"Burn rate: havi átlag {_huf(avg_burn)} | éves keret {_huf(annual_budget)} | "
+                f"maradék ~{months_remaining:.1f} hónap (kb. {exhaust_date.strftime('%Y-%m')})"
+            )
+        elif remaining_budget <= 0:
+            lines.append(
+                f"Burn rate: havi átlag {_huf(avg_burn)} | éves keret {_huf(annual_budget)} | "
+                f"⚠ A keret kimerült! ({_huf(abs(remaining_budget))} túllépés)"
+            )
+        else:
+            lines.append(f"Burn rate: havi átlag {_huf(avg_burn)} | éves keret {_huf(annual_budget)}")
+    else:
+        lines.append("Nincs elegendő adat a burn rate számításhoz.")
+
+    return "\n".join(lines)
+
+
+# === F10: Working Capital ===
+
+async def _working_capital(db: AsyncSession) -> str:
+    period = datetime.now().strftime("%Y-%m")
+    wc_keys = ["dso_days", "dpo_days", "cash_conversion_cycle_days"]
+    keys_sql = ", ".join(f"'{k}'" for k in wc_keys)
+
+    try:
+        rows, _ = await _execute_sql(
+            db,
+            f"SELECT metric_key, value FROM cfo_metrics WHERE period = '{period}' AND metric_key IN ({keys_sql})",
+        )
+    except Exception as e:
+        return f"Hiba a forgótőke lekérdezésekor: {str(e)[:200]}"
+
+    m = {r["metric_key"]: r["value"] for r in rows}
+    dso = m.get("dso_days", 0)
+    dpo = m.get("dpo_days", 0)
+    ccc = m.get("cash_conversion_cycle_days", 0)
+
+    lines = [f"Forgótőke mutatók ({period}):"]
+    lines.append("")
+    lines.append(f"  DSO (vevői fizetési napok): {dso:.1f} nap")
+    lines.append(f"  DPO (szállítói fizetési napok): {dpo:.1f} nap")
+    lines.append(f"  CCC (pénzforgási ciklus): {ccc:.1f} nap")
+    lines.append("")
+
+    if ccc != 0:
+        lines.append(
+            f"A pénzforgási ciklus {ccc:.0f} nap — ennyi napig van lekötve a tőke a működésben."
+        )
+
+    # Warnings
+    warnings = []
+    if dso > 45:
+        warnings.append(f"⚠ A DSO magas ({dso:.0f} nap) — a vevők lassan fizetnek.")
+    if 0 < dpo < 15:
+        warnings.append(f"⚠ A DPO alacsony ({dpo:.0f} nap) — érdemes tárgyalni a szállítókkal a fizetési feltételekről.")
+    if ccc > 60:
+        warnings.append(f"⚠ A pénzforgási ciklus hosszú ({ccc:.0f} nap) — a forgótőke hatékonyság javítandó.")
+
+    for w in warnings:
+        lines.append(w)
+
+    if all(m.get(k, 0) == 0 for k in wc_keys):
+        lines.append("")
+        lines.append("⚠ A mutatók 0-t mutatnak, mert nincs elegendő adat a számításhoz.")
 
     return "\n".join(lines)

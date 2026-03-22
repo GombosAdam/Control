@@ -1,5 +1,5 @@
 """
-Celery task: calculate 46 CFO metrics and upsert into cfo_metrics table.
+Celery task: calculate 57 CFO metrics and upsert into cfo_metrics table.
 Runs hourly or on-demand.
 """
 
@@ -335,6 +335,61 @@ def _get_metric_queries(period: str) -> list[tuple[str, str]]:
                  COALESCE((SELECT AVG(gross_amount) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM') = '{period}' AND status IN {PROCESSED_STATUSES} AND gross_amount IS NOT NULL), 0) AS curr_avg,
                  COALESCE((SELECT AVG(gross_amount) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM') = '{yoy}' AND status IN {PROCESSED_STATUSES} AND gross_amount IS NOT NULL), 0) AS prev_avg
          ) sub"""),
+
+        # === Aging Report Metrics (47-54) — F8 ===
+        ("aging_0_30d_count",
+         "SELECT COUNT(*) FROM invoices WHERE due_date < CURRENT_DATE AND due_date IS NOT NULL AND status NOT IN ('posted','rejected','error') AND (CURRENT_DATE - due_date) BETWEEN 1 AND 30"),
+
+        ("aging_0_30d_amount",
+         "SELECT COALESCE(SUM(gross_amount), 0) FROM invoices WHERE due_date < CURRENT_DATE AND due_date IS NOT NULL AND status NOT IN ('posted','rejected','error') AND gross_amount IS NOT NULL AND (CURRENT_DATE - due_date) BETWEEN 1 AND 30"),
+
+        ("aging_31_60d_count",
+         "SELECT COUNT(*) FROM invoices WHERE due_date < CURRENT_DATE AND due_date IS NOT NULL AND status NOT IN ('posted','rejected','error') AND (CURRENT_DATE - due_date) BETWEEN 31 AND 60"),
+
+        ("aging_31_60d_amount",
+         "SELECT COALESCE(SUM(gross_amount), 0) FROM invoices WHERE due_date < CURRENT_DATE AND due_date IS NOT NULL AND status NOT IN ('posted','rejected','error') AND gross_amount IS NOT NULL AND (CURRENT_DATE - due_date) BETWEEN 31 AND 60"),
+
+        ("aging_61_90d_count",
+         "SELECT COUNT(*) FROM invoices WHERE due_date < CURRENT_DATE AND due_date IS NOT NULL AND status NOT IN ('posted','rejected','error') AND (CURRENT_DATE - due_date) BETWEEN 61 AND 90"),
+
+        ("aging_61_90d_amount",
+         "SELECT COALESCE(SUM(gross_amount), 0) FROM invoices WHERE due_date < CURRENT_DATE AND due_date IS NOT NULL AND status NOT IN ('posted','rejected','error') AND gross_amount IS NOT NULL AND (CURRENT_DATE - due_date) BETWEEN 61 AND 90"),
+
+        ("aging_90plus_count",
+         "SELECT COUNT(*) FROM invoices WHERE due_date < CURRENT_DATE AND due_date IS NOT NULL AND status NOT IN ('posted','rejected','error') AND (CURRENT_DATE - due_date) > 90"),
+
+        ("aging_90plus_amount",
+         "SELECT COALESCE(SUM(gross_amount), 0) FROM invoices WHERE due_date < CURRENT_DATE AND due_date IS NOT NULL AND status NOT IN ('posted','rejected','error') AND gross_amount IS NOT NULL AND (CURRENT_DATE - due_date) > 90"),
+
+        # === Working Capital Metrics (55-57) — F10 ===
+        ("dso_days",
+         f"""SELECT CASE WHEN annual_rev = 0 THEN 0
+             ELSE ROUND(CAST(ar / annual_rev * 365 AS NUMERIC), 1) END
+         FROM (
+             SELECT
+                 COALESCE((SELECT SUM(gross_amount) FROM invoices
+                     WHERE status NOT IN ('posted','rejected','error') AND gross_amount IS NOT NULL), 0) AS ar,
+                 COALESCE((SELECT SUM(planned_amount) FROM budget_lines
+                     WHERE pnl_category = 'revenue' AND plan_type = 'budget'
+                     AND period >= '{_period_minus(period, 11)}' AND period <= '{period}'), 0) AS annual_rev
+         ) sub"""),
+
+        ("dpo_days",
+         f"""SELECT CASE WHEN annual_cogs = 0 THEN 0
+             ELSE ROUND(CAST(ap / annual_cogs * 365 AS NUMERIC), 1) END
+         FROM (
+             SELECT
+                 COALESCE((SELECT SUM(amount) FROM purchase_orders
+                     WHERE status IN ('approved','received')), 0) AS ap,
+                 COALESCE((SELECT SUM(planned_amount) FROM budget_lines
+                     WHERE pnl_category = 'cogs' AND plan_type = 'budget'
+                     AND period >= '{_period_minus(period, 11)}' AND period <= '{period}'), 0) AS annual_cogs
+         ) sub"""),
+
+        ("cash_conversion_cycle_days",
+         f"""SELECT
+             COALESCE((SELECT value FROM cfo_metrics WHERE metric_key = 'dso_days' AND period = '{period}'), 0)
+             - COALESCE((SELECT value FROM cfo_metrics WHERE metric_key = 'dpo_days' AND period = '{period}'), 0)"""),
     ]
 
 
@@ -351,7 +406,7 @@ def _upsert_metric(db: Session, metric_key: str, period: str, value: float) -> N
 
 @celery_app.task(name="calculate_cfo_metrics")
 def calculate_cfo_metrics(period: str | None = None):
-    """Calculate all 46 CFO metrics for the given period (default: current month)."""
+    """Calculate all 57 CFO metrics for the given period (default: current month)."""
     if period is None:
         period = date.today().strftime("%Y-%m")
 
