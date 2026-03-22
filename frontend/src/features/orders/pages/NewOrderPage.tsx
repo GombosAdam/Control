@@ -38,7 +38,7 @@ export function NewOrderPage() {
       await purchaseOrdersApi.create(form);
       navigate('/orders');
     } catch (err: any) {
-      setError(err.response?.data?.message || err.response?.data?.detail || 'Hiba történt');
+      setError(err.response?.data?.error || err.response?.data?.message || err.response?.data?.detail || 'Hiba történt');
     }
   };
 
