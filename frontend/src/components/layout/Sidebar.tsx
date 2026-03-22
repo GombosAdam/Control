@@ -2,8 +2,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogOut } from 'lucide-react';
-import { modules, type ModuleKey } from '../../config/modules';
+import { modules, servicePanels, type ModuleKey } from '../../config/modules';
 import { useAuthStore } from '../../stores/authStore';
+import type { UserRole } from '../../types/user';
 
 export function Sidebar() {
   const location = useLocation();
@@ -11,10 +12,14 @@ export function Sidebar() {
   const { user, logout } = useAuthStore();
   const [showModules, setShowModules] = useState(false);
 
+  const visibleModules = Object.entries(modules).filter(([_, mod]) =>
+    !mod.roles || mod.roles.includes(user?.role as UserRole)
+  );
+
   const getCurrentModule = (): ModuleKey | null => {
     const path = location.pathname;
     if (path === '/') return null;
-    for (const [key, module] of Object.entries(modules)) {
+    for (const [key, module] of visibleModules) {
       if (module.routes.some(route => path.startsWith(route))) {
         return key as ModuleKey;
       }
@@ -140,52 +145,87 @@ export function Sidebar() {
         </span>
       </button>
 
-      {/* Module Launcher Overlay */}
-      {showModules && (
-        <div
-          style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.5)', zIndex: 200,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-          onClick={() => setShowModules(false)}
-        >
+      {/* Module Launcher Overlay — 3 service panels */}
+      {showModules && (() => {
+        const visibleKeys = new Set(visibleModules.map(([k]) => k));
+
+        return (
           <div
             style={{
-              background: '#fff', borderRadius: '12px', padding: '32px',
-              display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '24px', maxWidth: '480px',
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.5)', zIndex: 200,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={() => setShowModules(false)}
           >
-            {Object.entries(modules).map(([key, mod]) => (
-              <Link
-                key={key}
-                to={mod.items[0]?.path || '/'}
-                onClick={() => setShowModules(false)}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  gap: '8px', padding: '16px', borderRadius: '8px',
-                  textDecoration: 'none', color: '#333', transition: 'background 150ms',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-              >
-                <div style={{
-                  width: '48px', height: '48px', borderRadius: '12px',
-                  background: mod.color, display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', color: '#fff',
-                }}>
-                  <mod.icon size={24} />
-                </div>
-                <span style={{ fontSize: '12px', fontWeight: 500, textAlign: 'center' }}>
-                  {t(mod.nameKey)}
-                </span>
-              </Link>
-            ))}
+            <div
+              style={{
+                background: '#fff', borderRadius: '16px', padding: '24px',
+                maxWidth: '820px', width: '100%',
+                display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {servicePanels.map((panel) => {
+                const panelModules = Object.entries(modules)
+                  .filter(([k, mod]) => mod.service === panel.key && visibleKeys.has(k))
+                  .map(([k, mod]) => ({ key: k, mod }));
+
+                if (panelModules.length === 0) return null;
+
+                return (
+                  <div
+                    key={panel.key}
+                    style={{
+                      background: '#fafafa', borderRadius: '12px', padding: '20px 16px',
+                      borderTop: `3px solid ${panel.color}`,
+                    }}
+                  >
+                    <div style={{
+                      fontSize: '13px', fontWeight: 700, color: panel.color,
+                      marginBottom: '4px',
+                    }}>
+                      {t(panel.labelKey)}
+                    </div>
+                    <div style={{
+                      fontSize: '10px', color: '#999', marginBottom: '16px', lineHeight: 1.4,
+                    }}>
+                      {t(panel.description)}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {panelModules.map(({ key, mod }) => (
+                        <Link
+                          key={key}
+                          to={mod.items[0]?.path || '/'}
+                          onClick={() => setShowModules(false)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '10px',
+                            padding: '8px 10px', borderRadius: '8px',
+                            textDecoration: 'none', color: '#333', transition: 'all 150ms',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = '#f0f0f0')}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <div style={{
+                            width: '36px', height: '36px', borderRadius: '8px',
+                            background: mod.color, display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', color: '#fff', flexShrink: 0,
+                          }}>
+                            <mod.icon size={18} />
+                          </div>
+                          <span style={{ fontSize: '12px', fontWeight: 500 }}>
+                            {t(mod.nameKey)}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

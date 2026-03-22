@@ -1,9 +1,14 @@
 node_modules/
 dist/
 .env
+.env.prod
+.env.*
 __pycache__/
 *.pyc
 .venv/
 data/
 *.egg-info/
 .mypy_cache/
+*.db
+*.sqlite3
+nginx/certbot/

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const envUrl = import.meta.env.VITE_API_URL;
-const BASE_URL = typeof envUrl === 'string' ? envUrl : 'http://localhost:8080';
+const BASE_URL = typeof envUrl === 'string' ? envUrl : '';
 
 export const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,

@@ -1,26 +1,23 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Send, Trash2, ChevronDown, ChevronRight, Bot, User, Terminal } from 'lucide-react';
-import { chatApi, type ChatResponse } from '../../../services/api/chat';
+import { Send, Trash2, ChevronDown, ChevronRight, Bot, User, Terminal, Zap } from 'lucide-react';
+import { agentApi, type AgentResponse, type ToolCallLog } from '../../../services/api/chat';
 
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  sql?: string | null;
-  row_count?: number | null;
   error?: string | null;
   response_time_ms?: number | null;
-  sql_generation_ms?: number | null;
-  retry_count?: number;
   model_used?: string | null;
+  tool_calls?: ToolCallLog[];
   timestamp: Date;
 }
 
 interface LogEntry {
   id: string;
   timestamp: Date;
-  type: 'query' | 'sql' | 'result' | 'error' | 'timing' | 'info';
+  type: 'query' | 'result' | 'error' | 'timing' | 'info' | 'tool';
   message: string;
 }
 
@@ -28,7 +25,7 @@ const SUGGESTIONS = [
   'Hány számla van a rendszerben?',
   'Melyik osztály lépte túl a budget-ot?',
   'Mi a top 5 szállító összeg szerint?',
-  'Mi az EBITDA az aktuális hónapban?',
+  'Mekkora a profit?',
 ];
 
 export function ChatPage() {
@@ -36,7 +33,7 @@ export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [expandedSql, setExpandedSql] = useState<Set<string>>(new Set());
+  const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -54,8 +51,8 @@ export function ChatPage() {
     setLogs(prev => [...prev, { id: crypto.randomUUID(), timestamp: new Date(), type, message }]);
   };
 
-  const toggleSql = (id: string) => {
-    setExpandedSql(prev => {
+  const toggleTools = (id: string) => {
+    setExpandedTools(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -78,31 +75,26 @@ export function ChatPage() {
     setLoading(true);
 
     addLog('query', `Kérdés: "${question.trim()}"`);
-    addLog('info', 'SQL generálás indítása...');
+    addLog('info', 'Agent indítása...');
 
     const startTime = performance.now();
 
     try {
-      const response: ChatResponse = await chatApi.ask(question.trim());
+      const response: AgentResponse = await agentApi.ask(question.trim());
       const elapsed = Math.round(performance.now() - startTime);
 
-      if (response.sql) {
-        addLog('sql', response.sql);
+      for (const tc of response.tool_calls) {
+        const paramStr = Object.entries(tc.params)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(', ');
+        addLog('tool', `${tc.tool}(${paramStr}) → ${tc.latency_ms}ms`);
       }
+
       if (response.model_used) {
         addLog('info', `Modell: ${response.model_used}`);
       }
-      if (response.sql_generation_ms != null) {
-        addLog('timing', `SQL generálás: ${response.sql_generation_ms}ms`);
-      }
-      if (response.row_count != null) {
-        addLog('result', `Eredmény: ${response.row_count} sor`);
-      }
-      if (response.row_count === 0) {
-        addLog('info', 'A lekérdezés nem adott vissza eredményt — valószínűleg nincs adat erre az időszakra');
-      }
-      if ((response.retry_count ?? 0) > 0) {
-        addLog('info', `Újrapróbálkozás: ${response.retry_count}x`);
+      if (response.tool_calls.length > 0) {
+        addLog('info', `Tool hívások: ${response.tool_calls.length} db`);
       }
       addLog('timing', `Teljes válaszidő: ${response.response_time_ms ?? elapsed}ms`);
       if (response.error) {
@@ -113,13 +105,10 @@ export function ChatPage() {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: response.answer,
-        sql: response.sql,
-        row_count: response.row_count,
         error: response.error,
         response_time_ms: response.response_time_ms,
-        sql_generation_ms: response.sql_generation_ms,
-        retry_count: response.retry_count,
         model_used: response.model_used,
+        tool_calls: response.tool_calls,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, aiMsg]);
@@ -147,28 +136,28 @@ export function ChatPage() {
 
   const clearChat = () => {
     setMessages([]);
-    setExpandedSql(new Set());
+    setExpandedTools(new Set());
   };
 
   const logColor = (type: LogEntry['type']) => {
     switch (type) {
       case 'query': return '#93c5fd';
-      case 'sql': return '#a78bfa';
       case 'result': return '#4ade80';
       case 'error': return '#f87171';
       case 'timing': return '#fbbf24';
       case 'info': return '#94a3b8';
+      case 'tool': return '#b8965a';
     }
   };
 
   const logPrefix = (type: LogEntry['type']) => {
     switch (type) {
       case 'query': return '[Q]';
-      case 'sql': return '[SQL]';
       case 'result': return '[RES]';
       case 'error': return '[ERR]';
       case 'timing': return '[TIME]';
       case 'info': return '[INFO]';
+      case 'tool': return '[TOOL]';
     }
   };
 
@@ -184,20 +173,22 @@ export function ChatPage() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
-              width: '40px', height: '40px', borderRadius: '10px', background: '#8B5CF6',
+              width: '40px', height: '40px', borderRadius: '10px',
+              background: '#F59E0B',
               display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
             }}>
-              <Bot size={22} />
+              <Zap size={22} />
             </div>
             <div>
               <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#111' }}>
                 {t('modules.chat')}
               </h1>
               <span style={{ fontSize: '12px', color: '#888' }}>
-                Kérdezz bármit a pénzügyi adatokról
+                Pénzügyi AI Agent — Claude
               </span>
             </div>
           </div>
+
           {messages.length > 0 && (
             <button
               onClick={clearChat}
@@ -220,17 +211,18 @@ export function ChatPage() {
               justifyContent: 'center', height: '100%', gap: '24px',
             }}>
               <div style={{
-                width: '72px', height: '72px', borderRadius: '20px', background: '#8B5CF6',
+                width: '72px', height: '72px', borderRadius: '20px',
+                background: '#F59E0B',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
               }}>
-                <Bot size={36} />
+                <Zap size={36} />
               </div>
               <div style={{ textAlign: 'center' }}>
                 <h2 style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: 600, color: '#333' }}>
-                  Pénzügyi Asszisztens
+                  Pénzügyi AI Agent
                 </h2>
                 <p style={{ margin: 0, color: '#888', fontSize: '14px' }}>
-                  Tedd fel kérdéseidet a rendszer pénzügyi adatairól
+                  Tedd fel kérdéseidet — az agent automatikusan lekérdezi a szükséges adatokat
                 </p>
               </div>
               <div style={{
@@ -248,8 +240,8 @@ export function ChatPage() {
                       transition: 'all 150ms',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = '#8B5CF6';
-                      e.currentTarget.style.color = '#8B5CF6';
+                      e.currentTarget.style.borderColor = '#F59E0B';
+                      e.currentTarget.style.color = '#F59E0B';
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.borderColor = '#e0e0e0';
@@ -278,11 +270,11 @@ export function ChatPage() {
                     {/* Avatar */}
                     <div style={{
                       width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
-                      background: msg.role === 'user' ? '#3B82F6' : '#8B5CF6',
+                      background: msg.role === 'user' ? '#3B82F6' : '#F59E0B',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       color: '#fff',
                     }}>
-                      {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
+                      {msg.role === 'user' ? <User size={16} /> : <Zap size={16} />}
                     </div>
 
                     {/* Bubble */}
@@ -298,52 +290,56 @@ export function ChatPage() {
                         {msg.content}
                       </div>
 
-                      {/* SQL collapsible */}
-                      {msg.sql && (
+                      {/* Tool calls collapsible */}
+                      {msg.tool_calls && msg.tool_calls.length > 0 && (
                         <div style={{ marginTop: '8px' }}>
                           <button
-                            onClick={() => toggleSql(msg.id)}
+                            onClick={() => toggleTools(msg.id)}
                             style={{
                               display: 'flex', alignItems: 'center', gap: '4px',
                               background: 'none', border: 'none', cursor: 'pointer',
                               color: '#888', fontSize: '12px', padding: '4px 0',
                             }}
                           >
-                            {expandedSql.has(msg.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                            SQL lekérdezés
-                            {msg.row_count !== null && msg.row_count !== undefined && (
-                              <span style={{
-                                marginLeft: '6px', padding: '1px 6px', borderRadius: '10px',
-                                background: '#f0f0f0', fontSize: '11px',
-                              }}>
-                                {msg.row_count} sor
-                              </span>
-                            )}
+                            {expandedTools.has(msg.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                            <Zap size={12} style={{ color: '#F59E0B' }} />
+                            {msg.tool_calls.length} tool hívás
                             {msg.response_time_ms != null && (
-                              <span style={{
-                                marginLeft: '6px', padding: '1px 6px', borderRadius: '10px',
-                                background: '#EEF2FF', color: '#6366F1', fontSize: '11px',
-                              }}>
-                                {(msg.response_time_ms / 1000).toFixed(1)}s
-                              </span>
-                            )}
-                            {(msg.retry_count ?? 0) > 0 && (
                               <span style={{
                                 marginLeft: '6px', padding: '1px 6px', borderRadius: '10px',
                                 background: '#FEF3C7', color: '#D97706', fontSize: '11px',
                               }}>
-                                {msg.retry_count} retry
+                                {(msg.response_time_ms / 1000).toFixed(1)}s
                               </span>
                             )}
                           </button>
-                          {expandedSql.has(msg.id) && (
-                            <pre style={{
-                              margin: '4px 0 0', padding: '12px', borderRadius: '8px',
-                              background: '#1e1e2e', color: '#cdd6f4', fontSize: '12px',
-                              overflow: 'auto', maxHeight: '200px', lineHeight: 1.5,
+                          {expandedTools.has(msg.id) && (
+                            <div style={{
+                              margin: '4px 0 0', padding: '10px 12px', borderRadius: '8px',
+                              background: '#FFFBEB', border: '1px solid #FDE68A',
+                              fontSize: '12px', lineHeight: 1.6,
                             }}>
-                              {msg.sql}
-                            </pre>
+                              {msg.tool_calls.map((tc, i) => {
+                                const paramStr = Object.entries(tc.params)
+                                  .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+                                  .join(', ');
+                                return (
+                                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                    <span style={{ color: '#D97706', fontWeight: 600, fontFamily: 'monospace' }}>
+                                      {tc.tool}
+                                    </span>
+                                    {paramStr && (
+                                      <span style={{ color: '#92400E', fontFamily: 'monospace' }}>
+                                        ({paramStr})
+                                      </span>
+                                    )}
+                                    <span style={{ color: '#A3A3A3', marginLeft: 'auto', fontSize: '11px' }}>
+                                      {tc.latency_ms}ms
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
                       )}
@@ -367,10 +363,11 @@ export function ChatPage() {
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <div style={{
                     width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
-                    background: '#8B5CF6', display: 'flex', alignItems: 'center',
+                    background: '#F59E0B',
+                    display: 'flex', alignItems: 'center',
                     justifyContent: 'center', color: '#fff',
                   }}>
-                    <Bot size={16} />
+                    <Zap size={16} />
                   </div>
                   <div style={{
                     padding: '12px 16px', borderRadius: '12px', background: '#fff',
@@ -383,7 +380,8 @@ export function ChatPage() {
                           key={i}
                           style={{
                             width: '8px', height: '8px', borderRadius: '50%',
-                            background: '#8B5CF6', opacity: 0.4,
+                            background: '#F59E0B',
+                            opacity: 0.4,
                             animation: `chatBounce 1.4s infinite ${i * 0.2}s`,
                           }}
                         />
@@ -410,14 +408,14 @@ export function ChatPage() {
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Kérdezz valamit a pénzügyi adatokról..."
+              placeholder="Kérdezz bármit a pénzügyi adatokról..."
               disabled={loading}
               style={{
                 flex: 1, padding: '12px 16px', borderRadius: '12px',
                 border: '1px solid #e0e0e0', fontSize: '14px',
                 outline: 'none', background: loading ? '#f9f9f9' : '#fff',
               }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = '#8B5CF6'; }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = '#F59E0B'; }}
               onBlur={(e) => { e.currentTarget.style.borderColor = '#e0e0e0'; }}
             />
             <button
@@ -426,7 +424,7 @@ export function ChatPage() {
               style={{
                 width: '44px', height: '44px', borderRadius: '12px',
                 border: 'none', cursor: input.trim() && !loading ? 'pointer' : 'default',
-                background: input.trim() && !loading ? '#8B5CF6' : '#e0e0e0',
+                background: input.trim() && !loading ? '#F59E0B' : '#e0e0e0',
                 color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'background 150ms',
               }}
@@ -450,7 +448,7 @@ export function ChatPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Terminal size={16} style={{ color: '#64748b' }} />
             <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.5px' }}>
-              PIPELINE LOG
+              AGENT LOG
             </span>
           </div>
           {logs.length > 0 && (
@@ -477,7 +475,7 @@ export function ChatPage() {
               <Terminal size={24} style={{ opacity: 0.3, marginBottom: '8px' }} />
               <p>Tedd fel az első kérdést...</p>
               <p style={{ fontSize: '10px', marginTop: '4px' }}>
-                Itt látod a teljes SQL pipeline-t élőben
+                Itt látod az agent tool hívásait élőben
               </p>
             </div>
           ) : (
@@ -494,7 +492,9 @@ export function ChatPage() {
                       {logPrefix(log.type)}
                     </span>
                     <span style={{
-                      color: log.type === 'sql' ? '#c4b5fd' : log.type === 'error' ? '#fca5a5' : '#cbd5e1',
+                      color: log.type === 'error' ? '#fca5a5'
+                        : log.type === 'tool' ? '#fbbf24'
+                        : '#cbd5e1',
                       wordBreak: 'break-all',
                     }}>
                       {log.message}
@@ -507,14 +507,14 @@ export function ChatPage() {
           <div ref={logsEndRef} />
         </div>
 
-        {/* Log footer with stats */}
+        {/* Log footer */}
         <div style={{
           padding: '10px 16px', borderTop: '1px solid #1e293b',
           display: 'flex', gap: '16px', fontSize: '10px', color: '#475569',
         }}>
           <span>Queries: {messages.filter(m => m.role === 'user').length}</span>
           <span>Errors: {messages.filter(m => m.error).length}</span>
-          <span>Model: sqlcoder-8b</span>
+          <span>Engine: Claude</span>
         </div>
       </div>
 

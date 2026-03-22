@@ -1,24 +1,18 @@
 import os
 import uuid
-import threading
 import aiofiles
-from fastapi import APIRouter, Depends, UploadFile, File, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, UploadFile, File, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.dependencies import get_db, get_current_user
+from app.dependencies import get_db, get_current_user, require_role
 from app.api.v1.invoices.service import InvoiceService
-from app.api.v1.invoices.schemas import InvoiceUpdateRequest, InvoiceListResponse
-from app.models.user import User
+from app.api.v1.invoices.schemas import InvoiceUpdateRequest, InvoiceListResponse, ApprovalDecisionRequest
+from app.models.user import User, UserRole
 from app.config import settings
 from app.exceptions import NotFoundError
+from app.workers.tasks.process_invoice import process_invoice_task
 
 router = APIRouter()
-
-
-def _run_processing(invoice_id: str):
-    """Run invoice processing in a background thread."""
-    from app.workers.tasks.process_invoice import process_invoice_sync
-    process_invoice_sync(invoice_id, settings.DATABASE_URL_SYNC)
 
 
 @router.get("", response_model=InvoiceListResponse)
@@ -31,6 +25,16 @@ async def list_invoices(
     current_user: User = Depends(get_current_user),
 ):
     return await InvoiceService.list_invoices(db, page, limit, status, search)
+
+
+@router.get("/approval-queue")
+async def get_approval_queue(
+    role: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await InvoiceService.get_pending_approvals(db, role)
+
 
 @router.get("/{invoice_id}")
 async def get_invoice(
@@ -45,7 +49,7 @@ async def update_invoice(
     invoice_id: str,
     data: InvoiceUpdateRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.accountant)),
 ):
     return await InvoiceService.update_invoice(db, invoice_id, data)
 
@@ -53,7 +57,7 @@ async def update_invoice(
 async def delete_invoice(
     invoice_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.admin)),
 ):
     await InvoiceService.delete_invoice(db, invoice_id)
     return {"message": "Invoice deleted"}
@@ -62,7 +66,7 @@ async def delete_invoice(
 async def upload_invoice(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.accountant, UserRole.reviewer)),
 ):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise Exception("Only PDF files are allowed")
@@ -81,8 +85,8 @@ async def upload_invoice(
         db, file.filename, stored_path, current_user.id
     )
 
-    # Queue for processing in background thread
-    threading.Thread(target=_run_processing, args=(invoice["id"],), daemon=True).start()
+    # Queue for processing via Celery
+    process_invoice_task.delay(invoice["id"])
 
     return invoice
 
@@ -90,7 +94,7 @@ async def upload_invoice(
 async def bulk_upload(
     files: list[UploadFile] = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.accountant, UserRole.reviewer)),
 ):
     results = []
     for file in files:
@@ -105,7 +109,7 @@ async def bulk_upload(
             results.append(invoice)
     # Process all in background
     for inv in results:
-        threading.Thread(target=_run_processing, args=(inv["id"],), daemon=True).start()
+        process_invoice_task.delay(inv["id"])
     return {"uploaded": len(results), "invoices": results}
 
 @router.get("/{invoice_id}/pdf")
@@ -126,7 +130,7 @@ async def get_invoice_pdf(
 @router.post("/batch-import")
 async def batch_import_from_inbox(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.accountant)),
 ):
     """Import all PDFs from data/inbox/ into the system as 'uploaded' invoices."""
     inbox_dir = os.path.join(os.path.dirname(settings.UPLOAD_DIR), "inbox")
@@ -152,7 +156,7 @@ async def batch_import_from_inbox(
 @router.post("/process-all")
 async def process_all_uploaded(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.accountant)),
 ):
     """Start processing all 'uploaded' invoices."""
     from sqlalchemy import select
@@ -165,7 +169,7 @@ async def process_all_uploaded(
 
     count = 0
     for inv in invoices:
-        threading.Thread(target=_run_processing, args=(inv.id,), daemon=True).start()
+        process_invoice_task.delay(inv.id)
         count += 1
 
     return {"queued": count, "message": f"{count} invoices queued for processing"}
@@ -174,8 +178,40 @@ async def process_all_uploaded(
 async def reprocess_invoice(
     invoice_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.accountant)),
 ):
     result = await InvoiceService.reprocess(db, invoice_id)
-    threading.Thread(target=_run_processing, args=(invoice_id,), daemon=True).start()
+    process_invoice_task.delay(invoice_id)
     return result
+
+
+@router.post("/{invoice_id}/submit-approval")
+async def submit_for_approval(
+    invoice_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await InvoiceService.submit_for_approval(db, invoice_id, current_user.id)
+
+
+@router.get("/{invoice_id}/approvals")
+async def get_approval_status(
+    invoice_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await InvoiceService.get_approval_status(db, invoice_id)
+
+
+@router.post("/{invoice_id}/approvals/{step}/decide")
+async def decide_approval(
+    invoice_id: str,
+    step: int,
+    body: ApprovalDecisionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await InvoiceService.decide_approval(
+        db, invoice_id, step, body.decision, body.comment,
+        current_user.id, user_role=current_user.role.value,
+    )

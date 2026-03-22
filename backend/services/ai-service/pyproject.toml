@@ -1,0 +1,18 @@
+[project]
+name = "ai-service"
+version = "0.1.0"
+description = "AI Service - Chat API, CFO Metrics"
+requires-python = ">=3.11"
+dependencies = [
+    "invoice-manager-common",
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "celery[redis]>=5.3.0",
+    "redis>=5.0.0",
+    "httpx>=0.26.0",
+    "structlog>=24.1.0",
+    "python-dateutil>=2.8.0",
+    "python-multipart>=0.0.6",
+    "qdrant-client>=1.7.0",
+    "anthropic>=0.49.0",
+]

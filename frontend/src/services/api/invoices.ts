@@ -36,4 +36,20 @@ export const invoicesApi = {
 
   reprocess: (id: string) =>
     api.post(`/invoices/${id}/reprocess`).then(r => r.data),
+
+  processAll: () =>
+    api.post('/invoices/process-all').then(r => r.data),
+
+  // Approval workflow
+  submitForApproval: (id: string) =>
+    api.post(`/invoices/${id}/submit-approval`).then(r => r.data),
+
+  getApprovals: (id: string) =>
+    api.get(`/invoices/${id}/approvals`).then(r => r.data),
+
+  decideApproval: (invoiceId: string, step: number, decision: 'approved' | 'rejected', comment?: string) =>
+    api.post(`/invoices/${invoiceId}/approvals/${step}/decide`, { decision, comment }).then(r => r.data),
+
+  getApprovalQueue: (role?: string) =>
+    api.get('/invoices/approval-queue', { params: { role } }).then(r => r.data),
 };

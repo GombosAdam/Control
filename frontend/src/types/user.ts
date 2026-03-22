@@ -1,10 +1,11 @@
-export type UserRole = 'admin' | 'accountant' | 'reviewer';
+export type UserRole = 'admin' | 'cfo' | 'department_head' | 'accountant' | 'reviewer';
 
 export interface User {
   id: string;
   email: string;
   full_name: string;
   role: UserRole;
+  department_id?: string | null;
   is_active: boolean;
   last_login: string | null;
 }

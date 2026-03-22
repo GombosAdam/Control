@@ -1,8 +1,11 @@
 import math
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.invoice import Invoice, InvoiceStatus
-from app.exceptions import NotFoundError
+from app.models.invoice_approval import InvoiceApproval
+from app.models.audit import AuditLog
+from app.exceptions import NotFoundError, ValidationError, AuthorizationError
 
 class InvoiceService:
     @staticmethod
@@ -166,3 +169,165 @@ class InvoiceService:
         invoice.ocr_confidence = None
         await db.commit()
         return {"id": invoice.id, "status": "uploaded", "message": "Invoice queued for reprocessing"}
+
+    @staticmethod
+    async def submit_for_approval(db: AsyncSession, invoice_id: str, user_id: str) -> dict:
+        """Move invoice from pending_review to approval workflow."""
+        invoice = await InvoiceService.get_invoice_model(db, invoice_id)
+        if invoice.status != InvoiceStatus.pending_review:
+            raise ValidationError(f"Cannot submit: status is {invoice.status.value}, expected pending_review")
+
+        # Check for duplicate approval chain
+        existing = await db.execute(
+            select(InvoiceApproval).where(InvoiceApproval.invoice_id == invoice_id).limit(1)
+        )
+        if existing.scalar_one_or_none():
+            raise ValidationError("Approval chain already exists for this invoice")
+
+        # Create 3-step approval chain
+        steps = [
+            (1, "Ellenőrzés", "reviewer"),
+            (2, "Jóváhagyás", "department_head"),
+            (3, "Pénzügyi jóváhagyás", "cfo"),
+        ]
+        for step_num, name, role in steps:
+            approval = InvoiceApproval(
+                invoice_id=invoice_id,
+                step=step_num,
+                step_name=name,
+                status="pending" if step_num == 1 else "waiting",
+                assigned_role=role,
+            )
+            db.add(approval)
+
+        # Update invoice status to in_approval
+        invoice.status = InvoiceStatus.in_approval
+
+        # Audit
+        log = AuditLog(user_id=user_id, action="invoice.submit_approval", entity_type="invoice", entity_id=invoice_id, details={"steps": 3})
+        db.add(log)
+        await db.commit()
+        return {"invoice_id": invoice_id, "steps_created": 3}
+
+    @staticmethod
+    async def get_approval_status(db: AsyncSession, invoice_id: str) -> list[dict]:
+        result = await db.execute(
+            select(InvoiceApproval).where(
+                InvoiceApproval.invoice_id == invoice_id
+            ).order_by(InvoiceApproval.step)
+        )
+        approvals = result.scalars().all()
+        return [{
+            "id": a.id,
+            "step": a.step,
+            "step_name": a.step_name,
+            "status": a.status,
+            "assigned_role": a.assigned_role,
+            "decided_by": a.decided_by,
+            "decider_name": a.decider.full_name if a.decider else None,
+            "decided_at": a.decided_at.isoformat() if a.decided_at else None,
+            "comment": a.comment,
+            "created_at": a.created_at.isoformat(),
+        } for a in approvals]
+
+    @staticmethod
+    async def decide_approval(db: AsyncSession, invoice_id: str, step: int,
+                              decision: str, comment: str | None, user_id: str,
+                              user_role: str = "") -> dict:
+        """Approve or reject a specific step."""
+        if decision not in ("approved", "rejected"):
+            raise ValidationError("Decision must be 'approved' or 'rejected'")
+
+        result = await db.execute(
+            select(InvoiceApproval).where(
+                InvoiceApproval.invoice_id == invoice_id,
+                InvoiceApproval.step == step,
+            )
+        )
+        approval = result.scalar_one_or_none()
+        if not approval:
+            raise NotFoundError("Approval step", f"{invoice_id}/step-{step}")
+        if approval.status not in ("pending",):
+            raise ValidationError(f"Step {step} is {approval.status}, cannot decide")
+
+        # Role authorization check
+        if user_role != approval.assigned_role and user_role != "admin":
+            raise AuthorizationError(f"Role '{user_role}' cannot decide step assigned to '{approval.assigned_role}'")
+
+        approval.status = decision
+        approval.decided_by = user_id
+        approval.decided_at = datetime.utcnow()
+        approval.comment = comment
+
+        # Audit
+        log = AuditLog(user_id=user_id, action=f"invoice.approval.{decision}", entity_type="invoice",
+                       entity_id=invoice_id, details={"step": step, "decision": decision, "comment": comment})
+        db.add(log)
+
+        if decision == "rejected":
+            # Reject: set invoice to rejected, clear PO link, mark remaining steps as cancelled
+            invoice = await InvoiceService.get_invoice_model(db, invoice_id)
+            invoice.status = InvoiceStatus.rejected
+            # Clear PO link to free up budget commitment
+            invoice.purchase_order_id = None
+            invoice.match_status = "unmatched"
+            invoice.accounting_code = None
+            remaining = await db.execute(
+                select(InvoiceApproval).where(
+                    InvoiceApproval.invoice_id == invoice_id,
+                    InvoiceApproval.step > step,
+                )
+            )
+            for rem in remaining.scalars().all():
+                rem.status = "cancelled"
+        else:
+            # Approved: activate next step or finalize
+            next_result = await db.execute(
+                select(InvoiceApproval).where(
+                    InvoiceApproval.invoice_id == invoice_id,
+                    InvoiceApproval.step == step + 1,
+                )
+            )
+            next_step = next_result.scalar_one_or_none()
+            if next_step:
+                next_step.status = "pending"
+            else:
+                # All steps done - move to awaiting_match (requires PO reconciliation)
+                invoice = await InvoiceService.get_invoice_model(db, invoice_id)
+                invoice.status = InvoiceStatus.awaiting_match
+                invoice.reviewed_by_id = user_id
+                invoice.approved_at = datetime.utcnow()
+
+        await db.commit()
+        return {"invoice_id": invoice_id, "step": step, "decision": decision}
+
+    @staticmethod
+    async def get_pending_approvals(db: AsyncSession, role: str | None = None) -> list[dict]:
+        """Get all invoices with pending approval steps, optionally filtered by role."""
+        query = select(InvoiceApproval).where(InvoiceApproval.status == "pending")
+        if role:
+            query = query.where(InvoiceApproval.assigned_role == role)
+        query = query.order_by(InvoiceApproval.created_at)
+
+        result = await db.execute(query)
+        approvals = result.scalars().all()
+
+        items = []
+        seen_invoices = set()
+        for a in approvals:
+            if a.invoice_id in seen_invoices:
+                continue
+            seen_invoices.add(a.invoice_id)
+            invoice = await db.get(Invoice, a.invoice_id)
+            items.append({
+                "invoice_id": a.invoice_id,
+                "invoice_number": invoice.invoice_number if invoice else None,
+                "original_filename": invoice.original_filename if invoice else None,
+                "gross_amount": invoice.gross_amount if invoice else None,
+                "currency": invoice.currency if invoice else "HUF",
+                "step": a.step,
+                "step_name": a.step_name,
+                "assigned_role": a.assigned_role,
+                "created_at": a.created_at.isoformat(),
+            })
+        return items

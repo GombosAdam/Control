@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Invoice Manager",
+    "name": "Financial Planning and Controls",
     "subtitle": "Invoice Processing System"
   },
   "modules": {
@@ -8,16 +8,34 @@
     "invoices": "Invoices",
     "extraction": "Extraction",
     "partners": "Partners",
+    "accounting": "Accounting",
     "reports": "Reports",
-    "admin": "Admin"
+    "admin": "Admin",
+    "budget": "Budget",
+    "orders": "Orders",
+    "reconciliation": "Reconciliation",
+    "controlling": "Controlling",
+    "chat": "AI Assistant",
+    "gpu": "GPU Control"
+  },
+  "launcher": {
+    "ai": "AI & Analytics",
+    "aiDesc": "AI assistant, GPU management, system admin",
+    "pipeline": "Invoices & Pipeline",
+    "pipelineDesc": "Invoices, OCR extraction, review, reconciliation, partners",
+    "finance": "Finance",
+    "financeDesc": "Dashboard, budget, orders, accounting, controlling, reports"
   },
   "nav": {
+    "accounting": "Accounting",
     "dashboard": "Overview",
     "invoices": "Invoices",
     "upload": "Upload",
     "processing": "Processing",
     "queue": "Queue",
     "review": "Review",
+    "extractionQueue": "Extraction Queue",
+    "extractionReview": "Extraction Review",
     "suppliers": "Suppliers",
     "customers": "Customers",
     "partners": "Partners",
@@ -28,7 +46,22 @@
     "users": "Users",
     "settings": "Settings",
     "system": "System",
-    "audit": "Audit Log"
+    "audit": "Audit Log",
+    "gpu": "GPU Control",
+    "budget": "Budget Frames",
+    "budgetPlanning": "P&L Planning",
+    "orders": "Orders",
+    "newOrder": "New Order",
+    "reconciliation": "Reconciliation",
+    "entries": "Accounting Entries",
+    "controlling": "Overview",
+    "planActual": "Plan vs. Actual",
+    "ebitda": "EBITDA",
+    "commitment": "Commitments",
+    "departments": "Departments",
+    "approvals": "Approvals",
+    "accountingTemplates": "Accounting Templates",
+    "chat": "Chat"
   },
   "auth": {
     "login": "Login",
@@ -116,6 +149,46 @@
     "pending_review": "Pending Review",
     "approved": "Approved",
     "rejected": "Rejected",
-    "error": "Error"
+    "error": "Error",
+    "in_approval": "In Approval",
+    "awaiting_match": "Awaiting PO Match",
+    "matched": "Matched",
+    "posted": "Posted"
+  },
+  "accounting_templates": {
+    "title": "Accounting Templates",
+    "pattern": "Account Code Pattern",
+    "name": "Name",
+    "debit": "Debit",
+    "credit": "Credit",
+    "description": "Description",
+    "add": "New Rule",
+    "empty": "No accounting rules"
+  },
+  "po": {
+    "approvalTimeline": "Approval Timeline",
+    "budgetAvailable": "Available Budget",
+    "budgetUsed": "Used",
+    "submittedForApproval": "Submitted for Approval",
+    "threshold": "CFO approval required above 500,000 HUF"
+  },
+  "approvals": {
+    "title": "Approval Queue",
+    "empty": "No invoices awaiting approval",
+    "filename": "Filename",
+    "invoiceNumber": "Invoice Number",
+    "amount": "Amount",
+    "step": "Step",
+    "role": "Waiting for",
+    "date": "Date",
+    "actions": "Actions",
+    "approve": "Approve",
+    "reject": "Reject",
+    "submit": "Submit for Approval",
+    "submitForApproval": "Submit for Approval",
+    "timeline": "Approval Timeline",
+    "rejectTitle": "Reject Invoice",
+    "commentPlaceholder": "Reason for rejection...",
+    "confirmReject": "Reject"
   }
 }

@@ -45,14 +45,15 @@ class ExtractionService:
 
     @staticmethod
     async def approve(db: AsyncSession, invoice_id: str, user_id: str) -> dict:
+        from datetime import datetime
         result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
         invoice = result.scalar_one_or_none()
         if not invoice:
             raise NotFoundError("Invoice", invoice_id)
-        invoice.status = InvoiceStatus.approved
+        invoice.status = InvoiceStatus.pending_review
         invoice.reviewed_by_id = user_id
         await db.commit()
-        return {"id": invoice.id, "status": "approved"}
+        return {"id": invoice.id, "status": "pending_review"}
 
     @staticmethod
     async def reject(db: AsyncSession, invoice_id: str, user_id: str) -> dict:

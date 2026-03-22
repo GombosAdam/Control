@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WWS Platform v2 — Műszaki Architektúra</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap');
+
+  :root {
+    --gold: #b8965a;
+    --gold-light: #d4b87a;
+    --gold-dark: #8a6d3b;
+    --black: #1a1a1a;
+    --dark: #2a2a2a;
+    --gray: #6b6b6b;
+    --gray-light: #a0a0a0;
+    --gray-bg: #f5f3f0;
+    --white: #fefefe;
+    --border: #e0dcd5;
+    --red: #c0392b;
+    --green: #27ae60;
+    --blue: #2c6fbb;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-weight: 400;
+    color: var(--black);
+    background: var(--white);
+    line-height: 1.7;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 60px 80px;
+    page-break-after: always;
+    min-height: 100vh;
+    position: relative;
+  }
+
+  .page-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    text-align: center;
+    color: var(--black);
+    margin-bottom: 60px;
+    padding-bottom: 20px;
+  }
+
+  .page-title em {
+    display: block;
+    font-size: 16px;
+    letter-spacing: 4px;
+    color: var(--gray);
+    margin-top: 8px;
+    font-style: normal;
+  }
+
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--black);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+    margin-bottom: 24px;
+    margin-top: 48px;
+  }
+
+  .section-title:first-of-type { margin-top: 0; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    margin-bottom: 20px;
+  }
+
+  .three-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 20px;
+  }
+
+  p { margin-bottom: 16px; color: var(--dark); }
+
+  strong { font-weight: 600; color: var(--black); }
+
+  .highlight {
+    background: var(--gray-bg);
+    border-left: 3px solid var(--gold);
+    padding: 20px 24px;
+    margin: 24px 0;
+    font-size: 14px;
+  }
+
+  .highlight p:last-child { margin-bottom: 0; }
+
+  .principle-box {
+    border: 1px solid var(--border);
+    padding: 30px 40px;
+    text-align: center;
+    margin: 40px auto;
+    max-width: 600px;
+  }
+
+  .principle-box .label {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 12px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--gray);
+    margin-bottom: 12px;
+  }
+
+  .principle-box .quote {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-style: italic;
+    color: var(--dark);
+    line-height: 1.5;
+  }
+
+  /* Architecture diagram */
+  .arch-diagram {
+    border: 1px solid var(--border);
+    padding: 30px;
+    margin: 30px 0;
+    background: var(--white);
+  }
+
+  .arch-row {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .arch-row.four { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .arch-row.three { grid-template-columns: 1fr 1fr 1fr; }
+  .arch-row.two { grid-template-columns: 1fr 1fr; }
+  .arch-row.one { grid-template-columns: 1fr; }
+
+  .arch-box {
+    border: 1px solid var(--border);
+    padding: 16px 20px;
+    background: var(--white);
+  }
+
+  .arch-box.dark {
+    background: var(--black);
+    color: var(--white);
+    border-color: var(--black);
+  }
+
+  .arch-box.dark .arch-label { color: var(--gold-light); }
+  .arch-box.dark .arch-detail { color: var(--gray-light); }
+
+  .arch-box.gold {
+    border-color: var(--gold);
+    background: linear-gradient(135deg, #faf8f4 0%, #f5f0e8 100%);
+  }
+
+  .arch-box.gold .arch-label { color: var(--gold-dark); }
+
+  .arch-label {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    color: var(--black);
+  }
+
+  .arch-detail {
+    font-size: 12px;
+    color: var(--gray);
+    line-height: 1.5;
+  }
+
+  .arch-arrow {
+    text-align: center;
+    color: var(--gray-light);
+    font-size: 20px;
+    padding: 6px 0;
+    letter-spacing: 8px;
+  }
+
+  .arch-arrow-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray-light);
+    font-size: 18px;
+  }
+
+  /* Flow diagrams */
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 24px 0;
+    flex-wrap: wrap;
+  }
+
+  .flow-step {
+    flex: 1;
+    min-width: 140px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    text-align: center;
+    position: relative;
+    background: var(--white);
+  }
+
+  .flow-step.active {
+    border-color: var(--gold);
+    background: linear-gradient(135deg, #faf8f4 0%, #f5f0e8 100%);
+  }
+
+  .flow-step .step-num {
+    font-size: 11px;
+    color: var(--gold);
+    font-weight: 600;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+
+  .flow-step .step-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--black);
+    margin-bottom: 4px;
+  }
+
+  .flow-step .step-detail {
+    font-size: 11px;
+    color: var(--gray);
+    line-height: 1.4;
+  }
+
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    color: var(--gray-light);
+    font-size: 16px;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 14px;
+  }
+
+  th {
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--white);
+    background: var(--black);
+    padding: 10px 16px;
+  }
+
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--dark);
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  /* Code blocks */
+  .code-block {
+    background: var(--black);
+    color: #e0e0e0;
+    padding: 20px 24px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    overflow-x: auto;
+    margin: 16px 0 24px;
+    border-radius: 2px;
+  }
+
+  .code-block .comment { color: #6a737d; }
+  .code-block .keyword { color: var(--gold-light); }
+  .code-block .string { color: #98c379; }
+  .code-block .type { color: #61afef; }
+
+  /* Lists */
+  ul, ol {
+    margin: 12px 0 16px 20px;
+    color: var(--dark);
+  }
+
+  li { margin-bottom: 6px; font-size: 14px; }
+
+  /* Footer */
+  .page-footer {
+    position: absolute;
+    bottom: 30px;
+    left: 80px;
+    right: 80px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--gray-light);
+    font-family: 'Cormorant Garamond', serif;
+    letter-spacing: 1px;
+  }
+
+  /* Metric cards */
+  .metric-card {
+    border: 1px solid var(--border);
+    padding: 16px 20px;
+    margin-bottom: 12px;
+  }
+
+  .metric-card .mc-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--gray);
+    margin-bottom: 4px;
+  }
+
+  .metric-card .mc-value {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    color: var(--black);
+  }
+
+  .metric-card .mc-detail {
+    font-size: 12px;
+    color: var(--gray);
+  }
+
+  /* Tag */
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border: 1px solid;
+    font-weight: 600;
+  }
+
+  .tag.gold { color: var(--gold-dark); border-color: var(--gold); background: #faf8f4; }
+  .tag.green { color: var(--green); border-color: var(--green); background: #f0faf4; }
+  .tag.red { color: var(--red); border-color: var(--red); background: #fdf2f0; }
+  .tag.blue { color: var(--blue); border-color: var(--blue); background: #f0f5fb; }
+  .tag.gray { color: var(--gray); border-color: var(--border); background: var(--gray-bg); }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 40px 0;
+  }
+
+  .small { font-size: 13px; }
+  .muted { color: var(--gray); }
+
+  @media print {
+    .page { padding: 40px 60px; }
+    body { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- PAGE 1: ARCHITEKTÚRA ÁTTEKINTÉS                               -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="page-title">
+    WWS Platform v2 — Műszaki Architektúra
+    <em>Agentic RAG — Tool-Vezérelt Pénzügyi Intelligencia</em>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="section-title">Alapelv</div>
+      <p>Minden AI válasz minősége egyetlen dologtól függ: <strong>milyen kontextust kap a modell</strong>. A modell ugyanaz — a tool-ok teszik okossá vagy butává.</p>
+      <p>A platform egy vékony <strong>alap kontextust</strong> (pulzust) biztosít — a rendszer pillanatnyi állapotának tömör összefoglalóját. Ezen túl az LLM <strong>tool-okon keresztül</strong> kérdez le részletes adatot, amikor szüksége van rá.</p>
+      <p>Az irányítás az <strong>LLM-é, nem a rendszeré</strong>. A rendszer nem próbálja kitalálni, mire lesz szükség — eszközöket ad, és hagyja, hogy a modell döntse el, mit kérdez le. Ez az agentic RAG pattern.</p>
+    </div>
+    <div>
+      <div class="section-title">V1 vs V2</div>
+      <table>
+        <tr><th>Dimenzió</th><th>V1</th><th>V2</th></tr>
+        <tr><td>AI input</td><td>SQL schema + few-shot</td><td>Alap kontextus + Tool-ok</td></tr>
+        <tr><td>Kontextus</td><td>Statikus, minden kérdésnél ugyanaz</td><td>Háromszintű: alap + tool-ok + iteratív</td></tr>
+        <tr><td>Válasz mód</td><td>SQL generálás → futtatás</td><td>Alap kontextusból indul + tool-okat hív igény szerint</td></tr>
+        <tr><td>Memória</td><td>Nincs</td><td>Interakció napló + előzmények</td></tr>
+        <tr><td>Tanulás</td><td>Nincs</td><td>Outcome tracking + feedback loop</td></tr>
+        <tr><td>Proaktivitás</td><td>Csak reaktív</td><td>Riasztások + ütemezett összefoglalók</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-title">Architektúra — Teljes Kép</div>
+
+  <div class="arch-diagram">
+    <div class="arch-row four">
+      <div class="arch-box">
+        <div class="arch-label">Adatforrások</div>
+        <div class="arch-detail">Számlázó API • Bank tranzakciók<br>CRM • E-commerce • PDF upload</div>
+      </div>
+      <div class="arch-box">
+        <div class="arch-label">Adatfeldolgozás & Tárolás</div>
+        <div class="arch-detail">ETL pipeline • PostgreSQL<br>Redis cache • Qdrant vector DB</div>
+      </div>
+      <div class="arch-box">
+        <div class="arch-label">Számítási Szolgáltatások</div>
+        <div class="arch-detail">Metrika • FP&A • Analitika<br>Determinisztikus, ütemezett</div>
+      </div>
+      <div class="arch-box">
+        <div class="arch-label">Memória</div>
+        <div class="arch-detail">Interakció napló • Outcome tracking<br>30/60/90 napos mérés</div>
+      </div>
+    </div>
+
+    <div class="arch-arrow">↓ &nbsp;&nbsp; ↓ &nbsp;&nbsp; ↓ &nbsp;&nbsp; ↓</div>
+
+    <div class="arch-row three">
+      <div class="arch-box gold">
+        <div class="arch-label">&#9672; Alap Kontextus (Pulzus)</div>
+        <div class="arch-detail">~300 token • 5 percenként frissül<br>Rendszer állapot tömör összefoglalója</div>
+      </div>
+      <div class="arch-box dark">
+        <div class="arch-label">AI Engine (LLM)</div>
+        <div class="arch-detail">Alap kontextus + Tool calling<br>Az LLM dönt, mit kérdez le</div>
+      </div>
+      <div class="arch-box gold">
+        <div class="arch-label">&#9672; Tool-ok (6+1)</div>
+        <div class="arch-detail">On-demand lekérdezések<br>Az LLM hívja, amikor szükséges</div>
+      </div>
+    </div>
+
+    <div class="arch-arrow">⇅ &nbsp;&nbsp;&nbsp;&nbsp; ↓ &nbsp;&nbsp;&nbsp;&nbsp; ⇅</div>
+
+    <div class="arch-row two">
+      <div class="arch-box">
+        <div class="arch-label">Kimenet</div>
+        <div class="arch-detail">Válasz • Vizualizáció • Összehasonlítás<br>Dashboard • Email • Slack • API</div>
+      </div>
+      <div class="arch-box" style="border-style: dashed;">
+        <div class="arch-label">↻ Visszacsatolás</div>
+        <div class="arch-detail">Válasz + Tool hívások + Döntés + Eredmény<br>→ Interakció napló → Vektorizálás → Vector DB</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>WWS Platform v2 — Műszaki Architektúra</span>
+    <span>1 / 7</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 2: HÁROMSZINTŰ ARCHITEKTÚRA                               -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="page-title">
+    WWS Platform v2
+    <em>A Háromszintű Architektúra</em>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="section-title">Miért Három Szint?</div>
+      <p>Minden LLM alkalmazás végső soron egy <strong>kontextus-összeállítási probléma</strong>. A modell ugyanaz — ami különbséget tesz: milyen kontextust kap, hogyan van strukturálva, és mikor kapja meg.</p>
+      <p>A hagyományos megközelítés: a rendszer <strong>előre kitalálja</strong>, mire lesz szüksége az LLM-nek, összegyűjti, és odaadja. Ez a push modell. A probléma: vagy túl sokat gyűjt (lassú, drága, pontatlan), vagy túl keveset (rossz válasz).</p>
+      <p>Az agentic RAG pattern megfordítja az irányítást: <strong>az LLM dönt</strong>, mikor mit kérdez le. A rendszer tool-okat biztosít — az LLM hívja őket igény szerint.</p>
+
+      <div class="highlight">
+        <p><strong>Analógia:</strong> A Claude Code nem olvassa be az egész repót a promptba. Read, Grep, Glob tool-jai vannak — és <strong>ő dönt</strong>, mikor melyiket hívja. Nem a rendszer dönti el előre, melyik fájlokat kell beolvasni. Ugyanezt csináljuk, csak üzleti adatokkal.</p>
+      </div>
+    </div>
+    <div>
+      <div class="section-title">A Három Szint</div>
+
+      <div class="flow" style="flex-direction: column; gap: 0;">
+        <div class="flow-step active">
+          <div class="step-num">1. SZINT</div>
+          <div class="step-title">Alap Kontextus (Pulzus)</div>
+          <div class="step-detail">Mindig, automatikusan, cache-ből. ~300 token.<br>A rendszer állapotának tömör összefoglalója.<br>5 percenként frissül. Nem az LLM kéri — a rendszer adja.</div>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">2. SZINT</div>
+          <div class="step-title">Tool-ok (On-Demand)</div>
+          <div class="step-detail">Az LLM dönt, mikor melyiket hívja.<br>6+1 jól definiált, gyors, parametrizált lekérdezés.<br>Részletes adat — csak amikor kell.</div>
+        </div>
+        <div class="flow-step active">
+          <div class="step-num">3. SZINT</div>
+          <div class="step-title">Iteratív Mélyülés</div>
+          <div class="step-detail">Az LLM a tool eredmények alapján dönt, kell-e tovább menni.<br>Budget adat → anomális partner → partner részletek.<br>A „kapcsolódó kontextus" kérdésének megoldása.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="section-title">Tipikus Tool-Használat Kérdéstípusonként</div>
+
+  <p>Az LLM a kérdés és az alap kontextus alapján dönt, mely tool-okat hívja. Az alábbi tábla <strong>nem előírás a rendszernek</strong> — ez az, amit az LLM jellemzően tesz.</p>
+
+  <table>
+    <tr>
+      <th>Kérdés típus</th>
+      <th>Példa</th>
+      <th>Az LLM jellemzően ezeket hívja</th>
+      <th>Alap kontextus elég?</th>
+    </tr>
+    <tr>
+      <td><span class="tag gold">Számla</span></td>
+      <td>"duplikát számlák?"</td>
+      <td>get_invoice_stats → get_anomalies</td>
+      <td>Nem — tool kell</td>
+    </tr>
+    <tr>
+      <td><span class="tag blue">Budget</span></td>
+      <td>"túlléptük a költségvetést?"</td>
+      <td>get_budget_summary → get_partner_detail</td>
+      <td>Részben — tool pontosít</td>
+    </tr>
+    <tr>
+      <td><span class="tag green">Cash</span></td>
+      <td>"meddig tartunk ki?"</td>
+      <td>get_cash_position</td>
+      <td>Nem — tool kell</td>
+    </tr>
+    <tr>
+      <td><span class="tag red">Anomália</span></td>
+      <td>"mi gyanús?"</td>
+      <td>get_anomalies → get_partner_detail</td>
+      <td>Részben — tool részletez</td>
+    </tr>
+    <tr>
+      <td><span class="tag gray">Általános</span></td>
+      <td>"mi a helyzet?"</td>
+      <td>Alap kontextusból válaszol, tool-ok opcionálisak</td>
+      <td>Igen — pulzus elég</td>
+    </tr>
+    <tr>
+      <td><span class="tag gray">Specifikus</span></td>
+      <td>"hány számlánk van?"</td>
+      <td>execute_sql</td>
+      <td>Nem — SQL tool kell</td>
+    </tr>
+  </table>
+
+  <div class="page-footer">
+    <span>WWS Platform v2 — Műszaki Architektúra</span>
+    <span>2 / 7</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 3: TOOL DEFINÍCIÓK                                       -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="page-title">
+    WWS Platform v2
+    <em>Tool Definíciók</em>
+  </div>
+
+  <div class="section-title">A 6+1 Tool</div>
+
+  <p>Az LLM számára elérhető tool-ok. Minden tool <strong>jól definiált, gyors, parametrizált lekérdezés</strong> — ugyanazok az adatok, mint az eredeti modulokban, de tool interfészként.</p>
+
+  <div class="three-col">
+    <div>
+      <div class="metric-card">
+        <div class="mc-label">1 — get_budget_summary</div>
+        <div class="mc-value" style="font-size: 18px;">Budget & FP&A</div>
+        <div class="mc-detail">
+          <br>
+          <strong>Paraméterek:</strong> department?, period?<br>
+          <strong>Visszatér:</strong> Budget vs actual, túllépések, osztály bontás<br>
+          <strong>Cache:</strong> Redis, 15 perc TTL<br>
+          <strong>Forrás:</strong> budget_lines, accounting_entries<br><br>
+          <strong>Token méret:</strong> ~400-600 token
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="metric-card">
+        <div class="mc-label">2 — get_invoice_stats</div>
+        <div class="mc-value" style="font-size: 18px;">Számla Állapot</div>
+        <div class="mc-detail">
+          <br>
+          <strong>Paraméterek:</strong> status?, partner?<br>
+          <strong>Visszatér:</strong> Státusz megoszlás, lejárt, duplikát gyanús, AI confidence<br>
+          <strong>Cache:</strong> Redis, 5 perc TTL<br>
+          <strong>Forrás:</strong> invoices tábla aggregációk<br><br>
+          <strong>Token méret:</strong> ~300 token
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="metric-card">
+        <div class="mc-label">3 — get_partner_detail</div>
+        <div class="mc-value" style="font-size: 18px;">Szállítói Kép</div>
+        <div class="mc-detail">
+          <br>
+          <strong>Paraméterek:</strong> name_or_id<br>
+          <strong>Visszatér:</strong> Partner összeg, fizetési minta, nyitott PO-k, számlák<br>
+          <strong>Cache:</strong> Redis, 30 perc TTL<br>
+          <strong>Forrás:</strong> partners + invoices join<br><br>
+          <strong>Token méret:</strong> ~300-400 token
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="metric-card">
+        <div class="mc-label">4 — get_anomalies</div>
+        <div class="mc-value" style="font-size: 18px;">Aktív Riasztások</div>
+        <div class="mc-detail">
+          <br>
+          <strong>Paraméterek:</strong> severity?, type?<br>
+          <strong>Visszatér:</strong> Anomáliák típusonként, érintett partnerek, severity<br>
+          <strong>Cache:</strong> Nincs (mindig friss)<br>
+          <strong>Forrás:</strong> invoice.anomaly_flags + ai_enrichments<br><br>
+          <strong>Token méret:</strong> ~200-500 token
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="metric-card">
+        <div class="mc-label">5 — get_cash_position</div>
+        <div class="mc-value" style="font-size: 18px;">Cash & Runway</div>
+        <div class="mc-detail">
+          <br>
+          <strong>Paraméterek:</strong> scenario?<br>
+          <strong>Visszatér:</strong> Cash position, runway szcenáriók, pénzforgalom<br>
+          <strong>Cache:</strong> Redis, 15 perc TTL<br>
+          <strong>Forrás:</strong> accounting_entries + budget_lines<br><br>
+          <strong>Token méret:</strong> ~400 token
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="metric-card">
+        <div class="mc-label">6 — search_history</div>
+        <div class="mc-value" style="font-size: 18px;">Releváns Múlt</div>
+        <div class="mc-detail">
+          <br>
+          <strong>Paraméterek:</strong> topic<br>
+          <strong>Visszatér:</strong> Top 3 hasonló korábbi kérdés-válasz, outcome score-ral<br>
+          <strong>Cache:</strong> Nincs (kérdésfüggő)<br>
+          <strong>Forrás:</strong> Vector DB szemantikus keresés<br><br>
+          <strong>Token méret:</strong> ~300-600 token
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight">
+    <p><strong>+1 Fallback: execute_sql(query)</strong> — Ha a fenti tool-ok nem adnak elég részletes adatot, az LLM SQL-t generálhat és futtathat. Guardrails: read-only, timeout, row limit. Ez a V1 text-to-SQL képesség — tool-ként megmarad, de nem az elsődleges út.</p>
+  </div>
+
+  <div class="page-footer">
+    <span>WWS Platform v2 — Műszaki Architektúra</span>
+    <span>3 / 7</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 4: MIÉRT TOOL-OK                                         -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="page-title">
+    WWS Platform v2
+    <em>Miért Tool-ok, Miért Nem Előre-Összeállított Kontextus</em>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="section-title">Push vs Pull</div>
+
+      <p>A kontextus-összeállításnak két modellje van. A v2 architektúra a <strong>pull (agentic)</strong> modellt követi.</p>
+
+      <table>
+        <tr><th>Dimenzió</th><th>Push (előre-összeállított)</th><th>Pull (agentic, tool-alapú)</th></tr>
+        <tr>
+          <td><strong>Ki dönt?</strong></td>
+          <td>A rendszer — rule-based osztályozás alapján</td>
+          <td>Az LLM — a kérdés megértése alapján</td>
+        </tr>
+        <tr>
+          <td><strong>Token pazarlás</strong></td>
+          <td>Magas — előre gyűjt, ami nem biztos, hogy kell</td>
+          <td>Minimális — csak az kerül be, amit az LLM kér</td>
+        </tr>
+        <tr>
+          <td><strong>Kapcsolódó kontextus</strong></td>
+          <td>Nehéz — a rendszernek előre kell tudnia, mi függ össze</td>
+          <td>Természetes — az LLM a tool eredmények alapján dönt, kell-e tovább menni</td>
+        </tr>
+        <tr>
+          <td><strong>Skálázhatóság</strong></td>
+          <td>Új adattípus = új osztályozási szabály + modul</td>
+          <td>Új adattípus = új tool definíció</td>
+        </tr>
+        <tr>
+          <td><strong>Hibamód</strong></td>
+          <td>Rossz osztályozás → rossz kontextus → rossz válasz</td>
+          <td>LLM dönt rosszul → retry / más tool / kérdez vissza</td>
+        </tr>
+      </table>
+
+      <div class="highlight">
+        <p><strong>A push modell alapproblémája:</strong> a rendszernek <em>a kérdés megértése előtt</em> kell döntenie arról, milyen adatot gyűjt. Ez egy osztályozási feladat — amit ironikus módon egy LLM oldana meg legjobban. De ha már LLM-et használunk az osztályozásra, miért ne hagynánk, hogy ő döntse el, mit kérdez le?</p>
+      </div>
+    </div>
+    <div>
+      <div class="section-title">Iparági Referenciák</div>
+
+      <p>Az agentic RAG pattern nem elméleti — ez a 2025-ös AI tooling de facto standardja:</p>
+
+      <ul>
+        <li><strong>Claude Code</strong> — Read, Grep, Glob, Bash tool-ok. Az LLM dönt, mikor melyiket hívja. Nem a rendszer dönti el előre, melyik fájlokat kell beolvasni.</li>
+        <li><strong>ChatGPT</strong> — Web search, code interpreter, file reader. A modell dönt, mikor keres a weben vs. mikor számol.</li>
+        <li><strong>Cursor / Windsurf</strong> — Code search, file read, terminal. Az IDE tool-okat ad, az LLM navigálja a kódbázist.</li>
+        <li><strong>Perplexity</strong> — Iteratív web keresés. Az első keresés eredménye alapján dönt, kell-e mélyebbre menni.</li>
+      </ul>
+
+      <p><strong>Mindegyik ugyanazt csinálja:</strong> vékony alap kontextus + tool-ok + iteratív mélyülés.</p>
+
+      <div class="section-title">Az Egyetlen Dolog, Amit Push-olunk</div>
+
+      <p>Az alap kontextus (pulzus) az egyetlen rész, amit a rendszer „push"-ol — mindig ott van a system promptban. Ez ~300 token: a rendszer pillanatnyi állapotának összefoglalója.</p>
+
+      <p>Minden más <strong>pull</strong> — az LLM hívja, amikor szükséges.</p>
+
+      <p>Ez a hibrid megközelítés biztosítja, hogy:</p>
+      <ul>
+        <li>Az LLM-nek <strong>mindig van rálátása</strong> a rendszer állapotára (pulzus)</li>
+        <li>De <strong>nem pazarol tokent</strong> részletes adatra, amire nem lesz szüksége</li>
+        <li>A részletes adat <strong>mindig friss</strong> — a tool híváskor kérdezi le, nem cache-ből</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>WWS Platform v2 — Műszaki Architektúra</span>
+    <span>4 / 7</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 5: ALAP KONTEXTUS & TOOL CALLING FLOW                    -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="page-title">
+    WWS Platform v2
+    <em>Alap Kontextus & Tool Calling Flow</em>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="section-title">Az Alap Kontextus (Pulzus)</div>
+
+      <p>Ez mindig a system prompt része. ~300 token, 5 percenként frissül, cache-ből jön. A rendszer pillanatnyi állapotának tömör összefoglalója — ez ad rálátást az LLM-nek.</p>
+
+      <div class="code-block">
+<span class="keyword">SYSTEM:</span>
+  Te egy pénzügyi asszisztens vagy.
+  Szabályok:
+  - Magyarul válaszolj
+  - Adatokra hivatkozz, ne tanácsot adj
+  - Ha anomáliát látsz, emeld ki
+
+<span class="keyword">CONTEXT (pulzus):</span>
+  Nyitott számlák: 47 (18.2M Ft) | Lejárt: 12
+  Budget felhasználás: 78% | Túllépés: IT +12%
+  Anomáliák: 5 aktív (2 kritikus)
+  Cash runway: 8.2 hónap (alap szcenárió)
+  Legutóbbi hasonló kérdés: 2026-01-15
+    → budget átcsoportosítás → megoldódott
+
+<span class="keyword">TOOLS:</span>
+  - get_budget_summary(department?, period?)
+  - get_invoice_stats(status?, partner?)
+  - get_partner_detail(name_or_id)
+  - get_anomalies(severity?, type?)
+  - get_cash_position(scenario?)
+  - search_history(topic)
+  - execute_sql(query)
+
+<span class="keyword">USER:</span>
+  "miért nőtt az IT költség?"
+      </div>
+    </div>
+    <div>
+      <div class="section-title">Példa: Tool Calling Flow</div>
+
+      <p>Végigkövetjük, hogyan dolgozza fel az LLM a kérdést: <strong>"miért nőtt az IT költség?"</strong></p>
+
+      <div class="flow" style="flex-direction: column; gap: 0;">
+        <div class="flow-step active">
+          <div class="step-num">1 — LLM GONDOLKODIK</div>
+          <div class="step-title">Alap kontextus elemzése</div>
+          <div class="step-detail">Látja: „IT +12%" a pulzusban.<br>Döntés: részletes budget adat kell.</div>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">2 — TOOL HÍVÁS</div>
+          <div class="step-title">get_budget_summary(department="IT")</div>
+          <div class="step-detail">Visszatér: IT budget 15M, actual 16.8M,<br>top tételek: CloudHost 4.2M, AWS 3.8M, Licenses 2.1M</div>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">3 — LLM GONDOLKODIK</div>
+          <div class="step-title">Iteratív mélyülés</div>
+          <div class="step-detail">CloudHost kiugró → kell a partner részlet.</div>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">4 — TOOL HÍVÁS</div>
+          <div class="step-title">get_partner_detail("CloudHost")</div>
+          <div class="step-detail">Visszatér: 3 számla 48h alatt, összesen 4.2M,<br>korábbi átlag: 1.4M/hó, +200% növekedés</div>
+        </div>
+        <div class="flow-step active">
+          <div class="step-num">5 — VÁLASZ</div>
+          <div class="step-title">Összefoglaló az egészből</div>
+          <div class="step-detail">„Az IT +12%-a főként a CloudHost miatt:<br>3 számla 48h alatt, 4.2M Ft — ez 200%-os<br>növekedés az átlaghoz képest. Javasolt: ellenőrzés."</div>
+        </div>
+      </div>
+
+      <div class="highlight">
+        <p><strong>A lényeg:</strong> A rendszer nem tudta előre, hogy a CloudHost partner adataira is szükség lesz. Az LLM a budget tool eredménye alapján <strong>döntött</strong>, hogy a partner tool-t is meghívja. Ez az iteratív mélyülés — a 3. szint.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>WWS Platform v2 — Műszaki Architektúra</span>
+    <span>5 / 7</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 6: MEMÓRIA & VISSZACSATOLÁS                              -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="page-title">
+    WWS Platform v2
+    <em>Memória & Visszacsatolás</em>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="section-title">Interakció Napló</div>
+
+      <p>Minden AI interakció rögzítésre kerül — beleértve a <strong>tool hívásokat</strong> is. Ez nem audit log — ez a rendszer <strong>tanulási alapja</strong>.</p>
+
+      <div class="code-block">
+{
+  <span class="keyword">"id"</span>: <span class="string">"uuid"</span>,
+  <span class="keyword">"timestamp"</span>: <span class="string">"2026-03-22T14:30:00"</span>,
+  <span class="keyword">"user_id"</span>: <span class="string">"uuid"</span>,
+
+  <span class="comment">// Input</span>
+  <span class="keyword">"question"</span>: <span class="string">"miért nőtt az IT költség?"</span>,
+  <span class="keyword">"base_context_hash"</span>: <span class="string">"abc123"</span>,
+
+  <span class="comment">// Tool hívások (sorrendben)</span>
+  <span class="keyword">"tool_calls"</span>: [
+    {<span class="string">"tool"</span>: <span class="string">"get_budget_summary"</span>,
+     <span class="string">"params"</span>: {<span class="string">"department"</span>: <span class="string">"IT"</span>},
+     <span class="string">"latency_ms"</span>: 120},
+    {<span class="string">"tool"</span>: <span class="string">"get_partner_detail"</span>,
+     <span class="string">"params"</span>: {<span class="string">"name_or_id"</span>: <span class="string">"CloudHost"</span>},
+     <span class="string">"latency_ms"</span>: 85}
+  ],
+
+  <span class="comment">// Output</span>
+  <span class="keyword">"answer_summary"</span>: <span class="string">"IT +12% a CloudHost..."</span>,
+  <span class="keyword">"response_time_ms"</span>: 2400,
+  <span class="keyword">"tokens_used"</span>: 2100,
+
+  <span class="comment">// Feedback (később kitöltve)</span>
+  <span class="keyword">"user_reaction"</span>: <span class="string">null</span>,
+  <span class="keyword">"outcome_30d"</span>: <span class="string">null</span>,
+  <span class="keyword">"outcome_90d"</span>: <span class="string">null</span>,
+
+  <span class="comment">// Vector</span>
+  <span class="keyword">"vector_id"</span>: <span class="string">"qdrant-point-id"</span>
+}
+      </div>
+
+      <p class="small muted">A tool hívások naplózása tanulási adat: a rendszer idővel látja, milyen kérdéseknél milyen tool-okat hív az LLM — ebből lehet optimalizálni a tool-okat.</p>
+    </div>
+    <div>
+      <div class="section-title">Outcome Tracking</div>
+
+      <p>A válasz önmagában nem elég — mérni kell, hogy <strong>mi történt utána</strong>. Ez az, ami idővel okossá teszi a rendszert.</p>
+
+      <table>
+        <tr><th>Időpont</th><th>Amit mérünk</th></tr>
+        <tr><td>Azonnal</td><td>User reakció: hasznos / nem hasznos / javított</td></tr>
+        <tr><td>30 nap</td><td>Történt-e változás az érintett területen?</td></tr>
+        <tr><td>60 nap</td><td>A változás javulást hozott?</td></tr>
+        <tr><td>90 nap</td><td>Visszatérő minta vagy megoldott probléma?</td></tr>
+      </table>
+
+      <div class="section-title">Hogyan Javítja a Válaszokat</div>
+
+      <p>Az outcome score visszakerül a vektorba. Amikor a search_history tool hasonló korábbi interakciókat keres, <strong>az eredményes válaszok magasabb relevancia-pontot kapnak</strong>.</p>
+
+      <div class="highlight">
+        <p><strong>Példa:</strong> 3 hónapja valaki kérdezte: "miért nőtt az IT költség?" — a válasz után budget átcsoportosítás történt, és a probléma megoldódott. <strong>Outcome: pozitív.</strong></p>
+        <p>Ma valaki hasonlót kérdez. Az alap kontextus (pulzus) tartalmazza: "Hasonló szituáció 2026-01-ben → budget átcsoportosítás → megoldódott."</p>
+        <p>Az LLM ezt látva relevánsabb kontextust tud adni — vagy a search_history tool-lal mélyebbre is mehet.</p>
+      </div>
+
+      <div class="section-title">Feedback Loop</div>
+
+      <div class="flow">
+        <div class="flow-step">
+          <div class="step-title">AI Válasz</div>
+          <div class="step-detail">+ tool hívások</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="step-title">User Döntés</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="step-title">Eredmény Mérés</div>
+          <div class="step-detail">30 / 60 / 90 nap</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="step-title">Vektorizálás</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step active">
+          <div class="step-title">Vector DB</div>
+          <div class="step-detail">Outcome score-ral</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>WWS Platform v2 — Műszaki Architektúra</span>
+    <span>6 / 7</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 7: IMPLEMENTÁCIÓ & KOCKÁZATOK                            -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="page-title">
+    WWS Platform v2
+    <em>Implementáció & Kockázatok</em>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="section-title">Implementációs Sorrend</div>
+
+      <table>
+        <tr><th>#</th><th>Fázis</th><th>Tartalom</th></tr>
+        <tr>
+          <td><span class="tag gold">1</span></td>
+          <td><strong>Alap kontextus service</strong></td>
+          <td>Pulzus generátor: ~300 token rendszer összefoglaló, 5 perces cache, Redis</td>
+        </tr>
+        <tr>
+          <td><span class="tag gold">2</span></td>
+          <td><strong>Tool definíciók</strong></td>
+          <td>6+1 tool implementáció: get_budget_summary, get_invoice_stats, get_partner_detail, get_anomalies, get_cash_position, search_history, execute_sql</td>
+        </tr>
+        <tr>
+          <td><span class="tag gold">3</span></td>
+          <td><strong>Chat service átírás</strong></td>
+          <td>Tool-calling LLM mód: system prompt + pulzus + tool definíciók. Az LLM tool calling API-ját használjuk</td>
+        </tr>
+        <tr>
+          <td><span class="tag blue">4</span></td>
+          <td><strong>Interakció napló</strong></td>
+          <td>Új tábla + Qdrant collection. Minden kérdés-válasz + tool hívások tárolása és vektorizálása</td>
+        </tr>
+        <tr>
+          <td><span class="tag blue">5</span></td>
+          <td><strong>Outcome tracking</strong></td>
+          <td>Feedback UI, 30/60/90 napos mérés, outcome score a vektorokban</td>
+        </tr>
+        <tr>
+          <td><span class="tag green">6</span></td>
+          <td><strong>Proaktív mód</strong></td>
+          <td>Ütemezett összefoglalók, küszöbérték riasztások, email/Slack kézbesítés</td>
+        </tr>
+      </table>
+
+      <div class="section-title">Érintett Komponensek</div>
+
+      <table>
+        <tr><th>Komponens</th><th>Változás</th></tr>
+        <tr><td>ai-service</td><td>Új: PulzusService, 6+1 tool implementáció, tool dispatcher</td></tr>
+        <tr><td>chat/service.py</td><td>Átírás: tool-calling LLM mód (system + pulzus + tools)</td></tr>
+        <tr><td>Qdrant</td><td>+1 collection: interaction_history (1536 dim)</td></tr>
+        <tr><td>PostgreSQL</td><td>+1 tábla: interactions (napló + tool_calls + outcome)</td></tr>
+        <tr><td>Redis</td><td>Pulzus cache + tool cache kulcsok</td></tr>
+        <tr><td>Frontend</td><td>Feedback UI (hasznos/nem hasznos gomb)</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="section-title">Nem-Triviális Problémák</div>
+
+      <p><strong>1. Tool abuse</strong><br>
+      Az LLM túl sok tool-t hívhat — lassú és drága. Megoldás: tool hívás limit (max 5/interakció), latency monitoring, és a pulzus elég jó kell legyen ahhoz, hogy az egyszerű kérdésekre tool nélkül válaszoljon.</p>
+
+      <p><strong>2. Tool design (granularitás)</strong><br>
+      A tool-ok granularitása kritikus. Túl specifikus = sok hívás kell, lassú. Túl általános = nagy eredmény, token pazarlás. A 6+1 tool bontás a jelenlegi domain alapján optimális, de idővel finomítandó.</p>
+
+      <p><strong>3. Cache invalidáció</strong><br>
+      A tool-ok eredményei cache-eltek. De ha valaki feltölt egy számlát, a get_invoice_stats cache-e érvénytelen. Az event bus megoldja, de a cache invalidáció komplex koreográfia.</p>
+
+      <p><strong>4. Outcome tracking valódisága</strong><br>
+      A 90 napos outcome nehezen mérhető. Honnan tudjuk, hogy a felhasználó döntését az AI válasz befolyásolta? Az ügyfél visszajelzésére kell hagyatkozni — ami ritkán jön.</p>
+
+      <p><strong>5. Hidegindítás</strong><br>
+      Új telepítésnél nincs interakció napló, a search_history tool üres. A pulzus és a többi tool azonnal működik — a tanulási réteg fokozatosan épül.</p>
+
+      <div class="section-title">Amit Nem Mi Építünk</div>
+      <ul>
+        <li><strong>LLM modell</strong> — Ollama / Claude API</li>
+        <li><strong>Vector DB</strong> — Qdrant</li>
+        <li><strong>Cache</strong> — Redis</li>
+        <li><strong>Task queue</strong> — Celery</li>
+      </ul>
+
+      <div class="section-title">Amit Mi Építünk</div>
+      <ul>
+        <li><strong>Pulzus service</strong> — alap kontextus generátor</li>
+        <li><strong>Tool-ok</strong> — 6+1 parametrizált lekérdezés</li>
+        <li><strong>Tool dispatcher</strong> — tool hívások végrehajtása és naplózása</li>
+        <li><strong>Outcome scoring</strong> — feedback loop + tanulás</li>
+        <li><strong>Domain tudás</strong> — pénzügyi szabályok és összefüggések</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="principle-box">
+    <div class="label">Alapelv</div>
+    <div class="quote">
+      „A modell ugyanaz.<br>
+      A tool-ok teszik okossá — vagy butává.<br>
+      A mi dolgunk a tool-ok."
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>WWS Platform v2 — Műszaki Architektúra</span>
+    <span>7 / 7</span>
+  </div>
+</div>
+
+</body>
+</html>

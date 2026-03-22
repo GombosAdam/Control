@@ -11,8 +11,9 @@ class ReportService:
         year = year or now.year
         month = month or now.month
 
+        post_approval = [InvoiceStatus.awaiting_match, InvoiceStatus.matched, InvoiceStatus.posted]
         query = select(Invoice).where(
-            Invoice.status == InvoiceStatus.approved,
+            Invoice.status.in_(post_approval),
             extract("year", Invoice.invoice_date) == year,
             extract("month", Invoice.invoice_date) == month,
         )
@@ -32,8 +33,9 @@ class ReportService:
     @staticmethod
     async def vat_report(db: AsyncSession, year: int | None) -> dict:
         year = year or datetime.utcnow().year
+        post_approval = [InvoiceStatus.awaiting_match, InvoiceStatus.matched, InvoiceStatus.posted]
         query = select(Invoice).where(
-            Invoice.status == InvoiceStatus.approved,
+            Invoice.status.in_(post_approval),
             extract("year", Invoice.invoice_date) == year,
         )
         result = await db.execute(query)

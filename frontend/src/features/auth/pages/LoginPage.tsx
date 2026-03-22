@@ -42,7 +42,7 @@ export function LoginPage() {
             <FileText size={32} />
           </div>
           <h1 style={{ fontSize: '24px', fontWeight: 600, color: '#1a1a1a', margin: 0 }}>
-            Invoice Manager
+            Financial Planning and Controls
           </h1>
           <p style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>
             {t('app.subtitle')}

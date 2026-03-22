@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Invoice Manager",
+    "name": "Financial Planning and Controls",
     "subtitle": "Számla Feldolgozó Rendszer"
   },
   "modules": {
@@ -8,16 +8,34 @@
     "invoices": "Számlák",
     "extraction": "Kinyerés",
     "partners": "Partnerek",
+    "accounting": "Könyvelés",
     "reports": "Riportok",
-    "admin": "Admin"
+    "admin": "Admin",
+    "budget": "Budget",
+    "orders": "Megrendelések",
+    "reconciliation": "Egyeztetés",
+    "controlling": "Controlling",
+    "chat": "AI Asszisztens",
+    "gpu": "GPU Control"
+  },
+  "launcher": {
+    "ai": "AI & Analytics",
+    "aiDesc": "AI asszisztens, GPU kezelés, rendszeradmin",
+    "pipeline": "Invoices & Pipeline",
+    "pipelineDesc": "Számlák, OCR kinyerés, ellenőrzés, egyeztetés, partnerek",
+    "finance": "Finance",
+    "financeDesc": "Irányítópult, budget, megrendelések, könyvelés, controlling, riportok"
   },
   "nav": {
+    "accounting": "Könyvelés",
     "dashboard": "Áttekintés",
     "invoices": "Számlák",
     "upload": "Feltöltés",
     "processing": "Feldolgozás",
     "queue": "Várakozó",
     "review": "Ellenőrzés",
+    "extractionQueue": "Ellenőrzési sor",
+    "extractionReview": "Kinyerés áttekintés",
     "suppliers": "Szállítók",
     "customers": "Vevők",
     "partners": "Partnerek",
@@ -28,7 +46,22 @@
     "users": "Felhasználók",
     "settings": "Beállítások",
     "system": "Rendszer",
-    "audit": "Napló"
+    "audit": "Napló",
+    "gpu": "GPU Control",
+    "budget": "Keretek",
+    "budgetPlanning": "P&L tervezés",
+    "orders": "Megrendelések",
+    "newOrder": "Új megrendelés",
+    "reconciliation": "Egyeztetés",
+    "entries": "Könyvelési tételek",
+    "controlling": "Áttekintés",
+    "planActual": "Terv vs. Tény",
+    "ebitda": "EBITDA",
+    "commitment": "Lekötések",
+    "departments": "Osztályok",
+    "approvals": "Jóváhagyások",
+    "accountingTemplates": "Könyvelési tükör",
+    "chat": "Chat"
   },
   "auth": {
     "login": "Bejelentkezés",
@@ -116,6 +149,46 @@
     "pending_review": "Ellenőrzésre vár",
     "approved": "Jóváhagyva",
     "rejected": "Elutasítva",
-    "error": "Hiba"
+    "error": "Hiba",
+    "in_approval": "Jóváhagyás alatt",
+    "awaiting_match": "PO-ra vár",
+    "matched": "Párosítva",
+    "posted": "Könyvelve"
+  },
+  "accounting_templates": {
+    "title": "Könyvelési tükör",
+    "pattern": "Számla kód minta",
+    "name": "Megnevezés",
+    "debit": "Tartozik",
+    "credit": "Követel",
+    "description": "Leírás",
+    "add": "Új szabály",
+    "empty": "Nincs könyvelési szabály"
+  },
+  "po": {
+    "approvalTimeline": "Jóváhagyási folyamat",
+    "budgetAvailable": "Szabad keret",
+    "budgetUsed": "Felhasznált",
+    "submittedForApproval": "Jóváhagyásra küldve",
+    "threshold": "CFO jóváhagyás szükséges 500.000 Ft felett"
+  },
+  "approvals": {
+    "title": "Jóváhagyási sor",
+    "empty": "Nincs jóváhagyásra váró számla",
+    "filename": "Fájlnév",
+    "invoiceNumber": "Számlaszám",
+    "amount": "Összeg",
+    "step": "Lépés",
+    "role": "Várakozik",
+    "date": "Dátum",
+    "actions": "Műveletek",
+    "approve": "Jóváhagyás",
+    "reject": "Elutasítás",
+    "submit": "Jóváhagyásra küldés",
+    "submitForApproval": "Jóváhagyásra küldés",
+    "timeline": "Jóváhagyási folyamat",
+    "rejectTitle": "Számla elutasítása",
+    "commentPlaceholder": "Elutasítás indoka...",
+    "confirmReject": "Elutasítás"
   }
 }

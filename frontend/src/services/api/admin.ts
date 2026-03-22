@@ -24,4 +24,13 @@ export const adminApi = {
 
   auditLog: (params?: { page?: number; limit?: number }) =>
     api.get('/admin/audit', { params }).then(r => r.data),
+
+  gpuStatus: () =>
+    api.get('/admin/gpu/status').then(r => r.data),
+
+  gpuStart: () =>
+    api.post('/admin/gpu/start').then(r => r.data),
+
+  gpuStop: () =>
+    api.post('/admin/gpu/stop').then(r => r.data),
 };

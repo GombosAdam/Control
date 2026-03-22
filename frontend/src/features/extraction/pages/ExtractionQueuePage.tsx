@@ -83,7 +83,7 @@ export function ExtractionQueuePage() {
                   borderBottom: '1px solid #f0f0f0',
                   cursor: 'pointer',
                   background: isSelected ? '#eff6ff' : '#fff',
-                  borderLeft: isSelected ? '3px solid #8B5CF6' : '3px solid transparent',
+                  borderLeft: isSelected ? '3px solid #0EA5E9' : '3px solid transparent',
                 }}
                 onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = '#f9fafb'; }}
                 onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = '#fff'; }}
@@ -91,7 +91,7 @@ export function ExtractionQueuePage() {
                 {/* Filename + actions */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                    <FileText size={16} color={isSelected ? '#8B5CF6' : '#999'} />
+                    <FileText size={16} color={isSelected ? '#0EA5E9' : '#999'} />
                     <span style={{
                       fontSize: '13px', fontWeight: 600, color: '#1a1a1a',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',

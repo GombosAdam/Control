@@ -4,7 +4,11 @@ export type InvoiceStatus =
   | 'ocr_done'
   | 'extracting'
   | 'pending_review'
+  | 'in_approval'
   | 'approved'
+  | 'awaiting_match'
+  | 'matched'
+  | 'posted'
   | 'rejected'
   | 'error';
 
@@ -59,4 +63,29 @@ export interface ExtractionResult {
   confidence_scores: Record<string, number> | null;
   model_used: string | null;
   extraction_time_ms: number | null;
+}
+
+export interface InvoiceApprovalStep {
+  id: string;
+  step: number;
+  step_name: string;
+  status: 'pending' | 'waiting' | 'approved' | 'rejected' | 'cancelled';
+  assigned_role: string;
+  decided_by: string | null;
+  decider_name: string | null;
+  decided_at: string | null;
+  comment: string | null;
+  created_at: string;
+}
+
+export interface ApprovalQueueItem {
+  invoice_id: string;
+  invoice_number: string | null;
+  original_filename: string | null;
+  gross_amount: number | null;
+  currency: string;
+  step: number;
+  step_name: string;
+  assigned_role: string;
+  created_at: string;
 }

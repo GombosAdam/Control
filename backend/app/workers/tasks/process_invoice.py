@@ -246,6 +246,24 @@ def extract_with_vlm(img, page_num: int) -> dict:
         return None
 
 
+from app.workers.celery_app import celery_app
+
+
+@celery_app.task(
+    name="process_invoice",
+    bind=True,
+    max_retries=2,
+    default_retry_delay=30,
+)
+def process_invoice_task(self, invoice_id: str):
+    """Celery task wrapper."""
+    try:
+        process_invoice_sync(invoice_id, settings.DATABASE_URL_SYNC)
+    except Exception as exc:
+        logger.error(f"Task failed for {invoice_id}: {exc}")
+        raise self.retry(exc=exc)
+
+
 def validate_amounts(invoice: Invoice) -> list:
     """Validate that netto + afa ≈ brutto."""
     warnings = []

@@ -1,5 +1,14 @@
 version: '3.8'
 
+x-common-env: &common-env
+  DATABASE_URL: postgresql+asyncpg://invoice_user:invoice_pass_2024@postgres:5432/invoice_manager
+  DATABASE_URL_SYNC: postgresql://invoice_user:invoice_pass_2024@postgres:5432/invoice_manager
+  REDIS_URL: redis://redis:6379/0
+  OLLAMA_URL: http://192.168.0.120:11434
+  LLM_MODEL: qwen3:14b
+  VLM_MODEL: qwen2.5vl:7b
+  LLM_TEMPERATURE: "0.0"
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -44,6 +53,37 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  invoice-celery:
+    build:
+      context: ./backend
+      dockerfile: services/invoice-pipeline/Dockerfile
+    container_name: invoice-celery
+    command: celery -A app.workers.celery_app:celery_app worker --loglevel=info --concurrency=2 -Q invoices
+    environment:
+      <<: *common-env
+      UPLOAD_DIR: /app/data/pdfs
+    volumes:
+      - ./backend/data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  ai-celery:
+    build:
+      context: ./backend
+      dockerfile: services/ai-service/Dockerfile
+    container_name: invoice-ai-celery
+    command: celery -A app.workers.celery_app:celery_app worker --loglevel=info --concurrency=2 -Q metrics
+    environment:
+      <<: *common-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   postgres_data:

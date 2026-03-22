@@ -1,0 +1,189 @@
+version: '3.8'
+
+x-common-env: &common-env
+  DATABASE_URL: postgresql+asyncpg://invoice_user:${DB_PASSWORD:-invoice_pass_prod_2024}@postgres:5432/invoice_manager
+  DATABASE_URL_SYNC: postgresql://invoice_user:${DB_PASSWORD:-invoice_pass_prod_2024}@postgres:5432/invoice_manager
+  REDIS_URL: redis://redis:6379/0
+  QDRANT_URL: http://qdrant:6333
+  JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+  APP_ENV: production
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: invoice-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: invoice_manager
+      POSTGRES_USER: invoice_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-invoice_pass_prod_2024}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U invoice_user -d invoice_manager"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: invoice-redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ai-service:
+    build:
+      context: ./backend
+      dockerfile: services/ai-service/Dockerfile
+    container_name: invoice-ai-service
+    restart: always
+    environment:
+      <<: *common-env
+      OLLAMA_URL: http://${GPU_PRIVATE_IP:-172.31.36.240}:11434
+      LLM_MODEL: qwen3:14b
+      VLM_MODEL: qwen2.5vl:7b
+      LLM_TEMPERATURE: "0.0"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      CORS_ORIGINS: https://invoice.rhcdemoaccount2.com,https://rhcdemoaccount2.com
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  ai-celery:
+    build:
+      context: ./backend
+      dockerfile: services/ai-service/Dockerfile
+    container_name: invoice-ai-celery
+    restart: always
+    command: celery -A app.workers.celery_app:celery_app worker --loglevel=info --concurrency=2 -Q metrics
+    environment:
+      <<: *common-env
+      OLLAMA_URL: http://${GPU_PRIVATE_IP:-172.31.36.240}:11434
+      LLM_MODEL: qwen3:14b
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  invoice-pipeline:
+    build:
+      context: ./backend
+      dockerfile: services/invoice-pipeline/Dockerfile
+    container_name: invoice-pipeline
+    restart: always
+    environment:
+      <<: *common-env
+      OLLAMA_URL: http://${GPU_PRIVATE_IP:-172.31.36.240}:11434
+      LLM_MODEL: qwen3:14b
+      VLM_MODEL: qwen2.5vl:7b
+      LLM_TEMPERATURE: "0.0"
+      CORS_ORIGINS: https://invoice.rhcdemoaccount2.com,https://rhcdemoaccount2.com
+      UPLOAD_DIR: /app/data/pdfs
+      INBOX_DIR: /app/data/inbox
+    volumes:
+      - invoice_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  invoice-celery:
+    build:
+      context: ./backend
+      dockerfile: services/invoice-pipeline/Dockerfile
+    container_name: invoice-celery
+    restart: always
+    command: celery -A app.workers.celery_app:celery_app worker --loglevel=info --concurrency=2 -Q invoices
+    environment:
+      <<: *common-env
+      OLLAMA_URL: http://${GPU_PRIVATE_IP:-172.31.36.240}:11434
+      VLM_MODEL: qwen2.5vl:7b
+      LLM_TEMPERATURE: "0.0"
+      UPLOAD_DIR: /app/data/pdfs
+    volumes:
+      - invoice_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  finance-service:
+    build:
+      context: ./backend
+      dockerfile: services/finance-service/Dockerfile
+    container_name: invoice-finance-service
+    restart: always
+    environment:
+      <<: *common-env
+      CORS_ORIGINS: https://invoice.rhcdemoaccount2.com,https://rhcdemoaccount2.com
+      UPLOAD_DIR: /app/data/pdfs
+      INBOX_DIR: /app/data/inbox
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+    volumes:
+      - invoice_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: invoice-frontend
+    restart: always
+
+  nginx:
+    image: nginx:alpine
+    container_name: invoice-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+    depends_on:
+      - ai-service
+      - invoice-pipeline
+      - finance-service
+      - frontend
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: invoice-qdrant
+    restart: always
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  certbot:
+    image: certbot/certbot
+    container_name: invoice-certbot
+    volumes:
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+volumes:
+  postgres_data:
+  redis_data:
+  invoice_data:
+  qdrant_data:

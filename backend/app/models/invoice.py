@@ -11,9 +11,20 @@ class InvoiceStatus(str, enum.Enum):
     ocr_done = "ocr_done"
     extracting = "extracting"
     pending_review = "pending_review"
+    in_approval = "in_approval"
     approved = "approved"
+    awaiting_match = "awaiting_match"
+    matched = "matched"
+    posted = "posted"
     rejected = "rejected"
     error = "error"
+
+
+class MatchStatus(str, enum.Enum):
+    unmatched = "unmatched"
+    matched = "matched"
+    mismatch = "mismatch"
+    posted = "posted"
 
 class Invoice(Base):
     __tablename__ = "invoices"
@@ -52,6 +63,11 @@ class Invoice(Base):
     similarity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     vector_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
+    # Controlling fields
+    purchase_order_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("purchase_orders.id"), nullable=True)
+    match_status: Mapped[str] = mapped_column(String(20), default="unmatched", nullable=False)
+    accounting_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
     # Relations
     reviewed_by_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     uploaded_by_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
@@ -59,11 +75,13 @@ class Invoice(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     partner = relationship("Partner", back_populates="invoices", lazy="selectin")
     lines = relationship("InvoiceLine", back_populates="invoice", cascade="all, delete-orphan", lazy="selectin")
     extraction_result = relationship("ExtractionResult", back_populates="invoice", uselist=False, lazy="selectin")
+    purchase_order = relationship("PurchaseOrder", lazy="selectin")
 
 class InvoiceLine(Base):
     __tablename__ = "invoice_lines"

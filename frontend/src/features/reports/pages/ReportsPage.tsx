@@ -5,9 +5,9 @@ import { TrendingUp, Receipt, Truck } from 'lucide-react';
 export function ReportsPage() {
   const { t } = useTranslation();
   const cards = [
-    { icon: TrendingUp, title: t('reports.monthly'), path: '/reports/monthly', color: '#EC4899' },
-    { icon: Receipt, title: t('reports.vat'), path: '/reports/vat', color: '#8B5CF6' },
-    { icon: Truck, title: t('reports.suppliers'), path: '/reports/suppliers', color: '#F59E0B' },
+    { icon: TrendingUp, title: t('reports.monthly'), path: '/reports/monthly', color: '#1e3a5f' },
+    { icon: Receipt, title: t('reports.vat'), path: '/reports/vat', color: '#2563eb' },
+    { icon: Truck, title: t('reports.suppliers'), path: '/reports/suppliers', color: '#3b82f6' },
   ];
 
   return (

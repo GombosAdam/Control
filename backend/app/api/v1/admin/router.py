@@ -3,9 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db, get_current_user, require_role
 from app.api.v1.admin.service import AdminService
 from app.api.v1.admin.schemas import UserCreateRequest, UserUpdateRequest, SettingUpdateRequest
+from app.api.v1.admin.gpu import router as gpu_router
 from app.models.user import User, UserRole
 
 router = APIRouter()
+router.include_router(gpu_router)
 
 @router.get("/users")
 async def list_users(
