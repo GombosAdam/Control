@@ -130,10 +130,16 @@ export function OrdersPage() {
             </button>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
-            <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} style={selectStyle}>
-              <option value="">{t('nav.departments')} - {t('invoices.all')}</option>
-              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
+            {(user?.role === 'admin' || user?.role === 'cfo' || user?.role === 'accountant') ? (
+              <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} style={selectStyle}>
+                <option value="">{t('nav.departments')} - {t('invoices.all')}</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            ) : (
+              <div style={{ ...selectStyle, background: '#f3f4f6', color: '#374151', display: 'flex', alignItems: 'center' }}>
+                {departments.find(d => d.id === user?.department_id)?.name || 'Saját osztály'}
+              </div>
+            )}
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={selectStyle}>
               <option value="">{t('invoices.status')} - {t('invoices.all')}</option>
               {['draft', 'approved', 'received', 'closed', 'cancelled'].map(s =>
@@ -170,7 +176,7 @@ export function OrdersPage() {
                       )}
                     </div>
                     <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
-                      {po.supplier_name} {po.supplier_tax_id ? `(${po.supplier_tax_id})` : ''} · {po.department_name}
+                      {po.partner_name || po.supplier_name} {po.supplier_tax_id ? `(${po.supplier_tax_id})` : ''} · {po.department_name}
                     </div>
                     <div style={{ fontSize: '11px', color: '#999', marginTop: '1px' }}>
                       {po.accounting_code} · {po.budget_line_name || '-'} · {new Date(po.created_at).toLocaleDateString('hu')}

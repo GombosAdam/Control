@@ -1,7 +1,8 @@
 import uuid
 import enum
 from datetime import datetime
-from sqlalchemy import String, Float, DateTime, ForeignKey, Enum as SAEnum
+from decimal import Decimal
+from sqlalchemy import String, DateTime, ForeignKey, Numeric, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from common.database import Base
 
@@ -19,7 +20,7 @@ class AccountingEntry(Base):
     purchase_order_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("purchase_orders.id"), nullable=True)
     account_code: Mapped[str] = mapped_column(String(20), nullable=False)
     department_id: Mapped[str] = mapped_column(String(36), ForeignKey("departments.id"), nullable=False)
-    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="HUF", nullable=False)
     period: Mapped[str] = mapped_column(String(7), nullable=False)  # YYYY-MM
     entry_type: Mapped[EntryType] = mapped_column(SAEnum(EntryType), nullable=False)

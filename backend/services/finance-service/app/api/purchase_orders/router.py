@@ -17,7 +17,20 @@ async def list_purchase_orders(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await PurchaseOrderService.list_orders(db, department_id, status, page, limit)
+    # Role-based department scoping
+    if current_user.role.value in ("admin", "cfo", "accountant"):
+        # Full access
+        effective_dept = department_id
+    elif current_user.role.value == "department_head":
+        # Own department (override if trying to see another)
+        if department_id and department_id != current_user.department_id:
+            effective_dept = current_user.department_id
+        else:
+            effective_dept = department_id or current_user.department_id
+    else:
+        # clerk, reviewer — own department only
+        effective_dept = current_user.department_id
+    return await PurchaseOrderService.list_orders(db, effective_dept, status, page, limit)
 
 
 @router.post("/")

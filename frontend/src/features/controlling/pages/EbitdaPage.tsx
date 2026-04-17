@@ -9,8 +9,9 @@ import { controllingApi } from '../../../services/api/controlling';
 import { departmentsApi } from '../../../services/api/departments';
 import { budgetApi } from '../../../services/api/budget';
 import { scenariosApi } from '../../../services/api/scenarios';
+import { accountsApi } from '../../../services/api/accounts';
 import { formatCurrency } from '../../../utils/formatters';
-import type { PnlRow, PnlChildLine, Department, ValidationResult, AuditLogEntry, BudgetLineComment, Scenario, PlanningPeriod } from '../../../types/controlling';
+import type { PnlRow, PnlChildLine, Department, ValidationResult, AuditLogEntry, BudgetLineComment, Scenario, PlanningPeriod, AccountMaster } from '../../../types/controlling';
 
 // Row style configs per P&L key
 const ROW_CONFIG: Record<string, { bg: string; border: string; color: string; weight: number; indent: number }> = {
@@ -46,6 +47,7 @@ export function EbitdaPage() {
   const { t } = useTranslation();
   const [rows, setRows] = useState<PnlRow[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [accountMaster, setAccountMaster] = useState<AccountMaster[]>([]);
   const [rawPeriods, setRawPeriods] = useState<string[]>([]);
   const [scale, setScale] = useState<'month' | 'quarter' | 'year'>('month');
   const [periodIndex, setPeriodIndex] = useState(0);
@@ -114,7 +116,10 @@ export function EbitdaPage() {
   const [comments, setComments] = useState<BudgetLineComment[]>([]);
   const [newComment, setNewComment] = useState('');
 
-  useEffect(() => { departmentsApi.list().then(setDepartments); }, []);
+  useEffect(() => {
+    departmentsApi.list().then(setDepartments);
+    accountsApi.list({ active: true }).then(setAccountMaster).catch(() => {});
+  }, []);
   useEffect(() => {
     budgetApi.getPeriods().then((p: string[]) => {
       setRawPeriods(p);
@@ -918,7 +923,17 @@ export function EbitdaPage() {
                         <option value="">Osztály</option>
                         {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
-                      <input placeholder="Kód" value={addForm.account_code} onChange={e => setAddForm({ ...addForm, account_code: e.target.value })} style={{ ...miniInput, width: '70px' }} />
+                      <select value={addForm.account_code} onChange={e => {
+                        const acc = accountMaster.find(a => a.code === e.target.value);
+                        setAddForm({ ...addForm, account_code: e.target.value, account_name: acc?.name || addForm.account_name });
+                      }} style={{ ...miniInput, minWidth: '200px' }}>
+                        <option value="">Számla kód...</option>
+                        {accountMaster.filter(a => !a.is_header && (
+                          !row.key || a.pnl_category === row.key || !a.pnl_category
+                        )).map(a => (
+                          <option key={a.code} value={a.code}>{a.code} — {a.name}</option>
+                        ))}
+                      </select>
                       <input placeholder="Megnevezés" value={addForm.account_name} onChange={e => setAddForm({ ...addForm, account_name: e.target.value })} style={{ ...miniInput, flex: 1 }} />
                       <input type="number" placeholder="Összeg" value={addForm.planned_amount || ''} onChange={e => setAddForm({ ...addForm, planned_amount: Number(e.target.value) })} style={{ ...miniInput, width: '100px', textAlign: 'right' }} />
                       <button onClick={() => handleAddLine(row.key)} style={{ padding: '3px 10px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 500 }}>

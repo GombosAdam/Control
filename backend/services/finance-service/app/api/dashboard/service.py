@@ -227,15 +227,16 @@ class DashboardService:
                 )
             ) or 0)
 
-            if line.planned_amount > 0 and actual > line.planned_amount:
-                overage = actual - line.planned_amount
-                overage_pct = round(overage / line.planned_amount * 100, 1)
+            planned = float(line.planned_amount)
+            if planned > 0 and actual > planned:
+                overage = actual - planned
+                overage_pct = round(overage / planned * 100, 1)
                 if overage_pct >= threshold_pct:
                     alerts.append({
                         "account_name": line.account_name,
                         "department_name": line.department.name if line.department else None,
                         "period": line.period,
-                        "planned": line.planned_amount,
+                        "planned": planned,
                         "actual": actual,
                         "overage_pct": overage_pct,
                     })

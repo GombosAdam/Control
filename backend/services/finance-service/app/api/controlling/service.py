@@ -56,8 +56,9 @@ class ControllingService:
                 )
             ) or 0
 
-            planned = line.planned_amount
+            planned = float(line.planned_amount)
             actual_f = float(actual)
+            committed_f = float(committed)
             variance = planned - actual_f
             variance_pct = (variance / planned * 100) if planned != 0 else 0
 
@@ -69,7 +70,7 @@ class ControllingService:
                 "period": line.period,
                 "planned": planned,
                 "actual": actual_f,
-                "committed": float(committed),
+                "committed": committed_f,
                 "variance": variance,
                 "variance_pct": round(variance_pct, 1),
                 "currency": line.currency,
@@ -142,6 +143,8 @@ class ControllingService:
             "id": po.id,
             "po_number": po.po_number,
             "department_name": po.department.name if po.department else None,
+            "partner_id": po.partner_id,
+            "partner_name": po.partner.name if po.partner else None,
             "supplier_name": po.supplier_name,
             "amount": po.amount,
             "currency": po.currency,
@@ -261,7 +264,7 @@ class ControllingService:
 
         for bl in budget_lines:
             cat = bl.pnl_category or "opex"
-            plan_by_cat[cat] = plan_by_cat.get(cat, 0) + bl.planned_amount
+            plan_by_cat[cat] = plan_by_cat.get(cat, 0) + float(bl.planned_amount)
 
             if cat not in detail_lines:
                 detail_lines[cat] = []
@@ -278,16 +281,17 @@ class ControllingService:
                 ae_query = ae_query.where(AccountingEntry.period >= period_from, AccountingEntry.period <= period_to)
 
             actual = float(await db.scalar(ae_query) or 0)
+            bl_planned = float(bl.planned_amount)
 
             detail_lines[cat].append({
                 "id": bl.id,
                 "account_code": bl.account_code,
                 "account_name": bl.account_name,
                 "department_name": bl.department.name if bl.department else None,
-                "planned": bl.planned_amount,
+                "planned": bl_planned,
                 "actual": actual,
-                "variance": bl.planned_amount - actual,
-                "variance_pct": round(((bl.planned_amount - actual) / bl.planned_amount * 100) if bl.planned_amount != 0 else 0, 1),
+                "variance": bl_planned - actual,
+                "variance_pct": round(((bl_planned - actual) / bl_planned * 100) if bl_planned != 0 else 0, 1),
                 "status": bl.status.value,
                 "created_by": bl.created_by,
                 "creator_name": bl.creator.name if bl.creator and hasattr(bl.creator, 'name') else (bl.creator.email if bl.creator else None),

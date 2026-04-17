@@ -13,6 +13,8 @@ from common.models.accounting_entry import AccountingEntry
 from common.models.audit import AuditLog
 from common.models.user import User, UserRole
 from common.models.position import Position
+from common.models.partner import Partner
+from common.models.account_master import AccountMaster
 from common.exceptions import NotFoundError, ValidationError, DuplicateError, AuthorizationError
 from common.events import event_bus
 
@@ -88,6 +90,27 @@ class PurchaseOrderService:
         # Extract lines
         lines_data = data.pop("lines", [])
 
+        # Validate accounting_code against account_master
+        accounting_code = data.get("accounting_code")
+        if accounting_code:
+            account = await db.get(AccountMaster, accounting_code)
+            if not account:
+                raise ValidationError(f"Érvénytelen számla kód: '{accounting_code}'. Válassz a számlatükörből.")
+            if account.is_header:
+                raise ValidationError(f"A '{accounting_code}' csoportfej számla, nem könyvelhető rá.")
+
+        # Auto-resolve partner from supplier_tax_id if partner_id not provided
+        if not data.get("partner_id") and data.get("supplier_tax_id"):
+            result = await db.execute(
+                select(Partner).where(Partner.tax_number == data["supplier_tax_id"])
+            )
+            partner = result.scalar_one_or_none()
+            if partner:
+                data["partner_id"] = partner.id
+                # Auto-fill supplier_name from partner if empty
+                if not data.get("supplier_name") or data["supplier_name"].strip() == "":
+                    data["supplier_name"] = partner.name
+
         # Calculate amount from lines
         amount = sum(line["quantity"] * line["unit_price"] for line in lines_data)
         data["amount"] = round(amount, 2)
@@ -126,7 +149,7 @@ class PurchaseOrderService:
                 AccountingEntry.entry_type == EntryType.debit,
             )
         ) or 0
-        available = budget_line.planned_amount - float(committed) - float(actual)
+        available = float(budget_line.planned_amount) - float(committed) - float(actual)
 
         if data["amount"] > available:
             raise ValidationError(
@@ -161,7 +184,7 @@ class PurchaseOrderService:
         asyncio.create_task(event_bus.publish("po.submitted", {
             "purchase_order_id": po.id,
             "created_by": user_id,
-            "amount": po.amount,
+            "amount": float(po.amount),
         }))
 
         return PurchaseOrderService._to_dict(po)
@@ -238,7 +261,7 @@ class PurchaseOrderService:
             entity_type="purchase_order", entity_id=po.id,
             details={
                 "steps": len(steps),
-                "amount": po.amount,
+                "amount": float(po.amount),
                 "chain": [{"step": sn, "name": name, "assignee_id": aid}
                           for sn, name, _, aid in steps],
             },
@@ -495,9 +518,11 @@ class PurchaseOrderService:
             "department_name": po.department.name if po.department else None,
             "budget_line_id": po.budget_line_id,
             "budget_line_name": f"{po.budget_line.account_code} - {po.budget_line.account_name}" if po.budget_line else None,
+            "partner_id": po.partner_id,
+            "partner_name": po.partner.name if po.partner else None,
             "supplier_name": po.supplier_name,
             "supplier_tax_id": po.supplier_tax_id,
-            "amount": po.amount,
+            "amount": float(po.amount),
             "currency": po.currency,
             "accounting_code": po.accounting_code,
             "description": po.description,
@@ -509,9 +534,9 @@ class PurchaseOrderService:
             "lines": [{
                 "id": line.id,
                 "description": line.description,
-                "quantity": line.quantity,
-                "unit_price": line.unit_price,
-                "net_amount": line.net_amount,
+                "quantity": float(line.quantity),
+                "unit_price": float(line.unit_price),
+                "net_amount": float(line.net_amount),
                 "sort_order": line.sort_order,
             } for line in po.lines] if po.lines else [],
             "goods_receipt": None,

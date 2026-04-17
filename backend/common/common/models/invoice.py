@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, date
-from sqlalchemy import String, Boolean, DateTime, Date, Float, Integer, Text, ForeignKey, JSON, Enum as SAEnum
+from decimal import Decimal
+from sqlalchemy import String, Boolean, DateTime, Date, Integer, Text, ForeignKey, JSON, Numeric, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from common.database import Base
 import enum
@@ -43,10 +44,10 @@ class Invoice(Base):
     payment_method: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Amounts
-    net_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
-    vat_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
-    vat_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
-    gross_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    net_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    vat_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    vat_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    gross_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), default="HUF", nullable=False)
 
     # File
@@ -55,12 +56,12 @@ class Invoice(Base):
 
     # OCR
     ocr_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    ocr_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ocr_confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
 
     # Duplicate detection
     is_duplicate: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     duplicate_of_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("invoices.id"), nullable=True)
-    similarity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    similarity_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     vector_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Controlling fields
@@ -71,7 +72,7 @@ class Invoice(Base):
     # AI enrichment fields
     suggested_accounting_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
     anomaly_flags: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    ai_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ai_confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
 
     # Relations
     reviewed_by_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
@@ -94,12 +95,12 @@ class InvoiceLine(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     invoice_id: Mapped[str] = mapped_column(String(36), ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    quantity: Mapped[float | None] = mapped_column(Float, nullable=True)
-    unit_price: Mapped[float | None] = mapped_column(Float, nullable=True)
-    net_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
-    vat_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
-    vat_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
-    gross_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    quantity: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    unit_price: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    net_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    vat_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    vat_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    gross_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     invoice = relationship("Invoice", back_populates="lines")

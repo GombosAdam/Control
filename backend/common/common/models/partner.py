@@ -1,9 +1,10 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, Float, Integer, Enum as SAEnum
+from sqlalchemy import String, Boolean, DateTime, Float, Integer, Text, Numeric, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from common.database import Base
 import enum
+from decimal import Decimal
 
 class PartnerType(str, enum.Enum):
     supplier = "supplier"
@@ -22,9 +23,23 @@ class Partner(Base):
     contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     auto_detected: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     invoice_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    total_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"), nullable=False)
     vector_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     default_accounting_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    # Partner master enrichment
+    payment_terms_days: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
+    payment_method: Mapped[str] = mapped_column(String(50), default="transfer", nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), default="HUF", nullable=False)
+    country_code: Mapped[str] = mapped_column(String(2), default="HU", nullable=False)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    zip_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    contact_person: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    iban: Mapped[str | None] = mapped_column(String(34), nullable=True)
+    swift_code: Mapped[str | None] = mapped_column(String(11), nullable=True)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

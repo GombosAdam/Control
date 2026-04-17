@@ -79,13 +79,22 @@ class ReconciliationService:
             Invoice.purchase_order_id.isnot(None),
             Invoice.status.in_([InvoiceStatus.matched, InvoiceStatus.posted]),
         )
-        result = await db.execute(
-            select(PurchaseOrder).where(
+
+        # Match by partner_id first (if invoice has partner), fallback to supplier_tax_id
+        from sqlalchemy import or_
+        po_filters = [
+            PurchaseOrder.status == POStatus.received,
+            PurchaseOrder.id.notin_(matched_po_ids),
+        ]
+        if invoice.partner_id:
+            po_filters.append(or_(
+                PurchaseOrder.partner_id == invoice.partner_id,
                 PurchaseOrder.supplier_tax_id == supplier_tax_id,
-                PurchaseOrder.status == POStatus.received,
-                PurchaseOrder.id.notin_(matched_po_ids),
-            )
-        )
+            ))
+        else:
+            po_filters.append(PurchaseOrder.supplier_tax_id == supplier_tax_id)
+
+        result = await db.execute(select(PurchaseOrder).where(*po_filters))
         pos = result.scalars().all()
 
         if not pos:

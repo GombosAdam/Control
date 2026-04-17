@@ -7,6 +7,7 @@ from common.models.purchase_order import PurchaseOrder, POStatus
 from common.models.accounting_entry import AccountingEntry
 from common.models.audit import AuditLog
 from common.models.user import User
+from common.models.account_master import AccountMaster
 from common.exceptions import NotFoundError, ValidationError
 
 
@@ -69,6 +70,17 @@ class BudgetService:
 
     @staticmethod
     async def create_line(db: AsyncSession, data: dict, user_id: str) -> dict:
+        # Validate account_code against account_master
+        account_code = data.get("account_code")
+        if account_code:
+            account = await db.get(AccountMaster, account_code)
+            if account:
+                # Auto-fill account_name and pnl_category from master
+                if not data.get("account_name") or data["account_name"] == account_code:
+                    data["account_name"] = account.name
+                if account.pnl_category and (not data.get("pnl_category") or data["pnl_category"] == "opex"):
+                    data["pnl_category"] = account.pnl_category
+
         line = BudgetLine(**data, created_by=user_id)
         db.add(line)
         await db.flush()
@@ -249,11 +261,11 @@ class BudgetService:
             if line.status != BudgetStatus.draft:
                 errors.append({"id": lid, "reason": f"Status is {line.status.value}, only draft lines can be adjusted"})
                 continue
-            old_amount = line.planned_amount
-            line.planned_amount = round(line.planned_amount * (1 + percentage / 100), 2)
+            old_amount = float(line.planned_amount)
+            line.planned_amount = round(float(line.planned_amount) * (1 + percentage / 100), 2)
             await BudgetService._write_audit(db, user_id, "budget_line.adjust", line, {
                 "old_amount": old_amount,
-                "new_amount": line.planned_amount,
+                "new_amount": float(line.planned_amount),
                 "percentage": percentage,
             })
             adjusted.append(lid)
@@ -401,11 +413,13 @@ class BudgetService:
             )
         ) or 0
 
-        available = line.planned_amount - float(committed) - float(actual)
+        planned = float(line.planned_amount)
+        committed_f = float(committed)
+        actual_f = float(actual)
         return {
-            "committed": float(committed),
-            "actual": float(actual),
-            "available": available,
+            "committed": committed_f,
+            "actual": actual_f,
+            "available": planned - committed_f - actual_f,
         }
 
     @staticmethod
@@ -417,7 +431,7 @@ class BudgetService:
             "account_code": line.account_code,
             "account_name": line.account_name,
             "period": line.period,
-            "planned_amount": line.planned_amount,
+            "planned_amount": float(line.planned_amount),
             "currency": line.currency,
             "status": line.status.value,
             "pnl_category": line.pnl_category,
@@ -472,7 +486,7 @@ class BudgetService:
                 "account_code": line.account_code,
                 "account_name": line.account_name,
                 "period": line.period,
-                "planned_amount": line.planned_amount,
+                "planned_amount": float(line.planned_amount),
                 "currency": line.currency,
             },
             "committed": avail["committed"],

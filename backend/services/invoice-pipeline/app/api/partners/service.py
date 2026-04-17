@@ -29,16 +29,7 @@ class PartnerService:
         partners = result.scalars().all()
 
         return {
-            "items": [
-                {
-                    "id": p.id, "name": p.name, "tax_number": p.tax_number,
-                    "bank_account": p.bank_account, "partner_type": p.partner_type.value,
-                    "address": p.address, "contact_email": p.contact_email,
-                    "auto_detected": p.auto_detected, "invoice_count": p.invoice_count,
-                    "total_amount": p.total_amount, "created_at": p.created_at.isoformat(),
-                }
-                for p in partners
-            ],
+            "items": [PartnerService._to_dict(p) for p in partners],
             "total": total, "page": page, "limit": limit,
             "pages": math.ceil(total / limit) if total > 0 else 1,
         }
@@ -49,14 +40,7 @@ class PartnerService:
         partner = result.scalar_one_or_none()
         if not partner:
             raise NotFoundError("Partner", partner_id)
-        return {
-            "id": partner.id, "name": partner.name, "tax_number": partner.tax_number,
-            "bank_account": partner.bank_account, "partner_type": partner.partner_type.value,
-            "address": partner.address, "contact_email": partner.contact_email,
-            "auto_detected": partner.auto_detected, "invoice_count": partner.invoice_count,
-            "total_amount": partner.total_amount,
-            "created_at": partner.created_at.isoformat(), "updated_at": partner.updated_at.isoformat(),
-        }
+        return PartnerService._to_dict(partner)
 
     @staticmethod
     async def create_partner(db: AsyncSession, data) -> dict:
@@ -97,6 +81,31 @@ class PartnerService:
             raise NotFoundError("Partner", partner_id)
         await db.delete(partner)
         await db.commit()
+
+    @staticmethod
+    def _to_dict(p: Partner) -> dict:
+        return {
+            "id": p.id, "name": p.name, "tax_number": p.tax_number,
+            "bank_account": p.bank_account, "partner_type": p.partner_type.value,
+            "address": p.address, "contact_email": p.contact_email,
+            "auto_detected": p.auto_detected, "invoice_count": p.invoice_count,
+            "total_amount": float(p.total_amount) if p.total_amount else 0,
+            "default_accounting_code": p.default_accounting_code,
+            "payment_terms_days": p.payment_terms_days,
+            "payment_method": p.payment_method,
+            "currency": p.currency,
+            "country_code": p.country_code,
+            "city": p.city,
+            "zip_code": p.zip_code,
+            "contact_person": p.contact_person,
+            "contact_phone": p.contact_phone,
+            "iban": p.iban,
+            "swift_code": p.swift_code,
+            "is_verified": p.is_verified,
+            "notes": p.notes,
+            "created_at": p.created_at.isoformat(),
+            "updated_at": p.updated_at.isoformat(),
+        }
 
     @staticmethod
     async def get_partner_invoices(db: AsyncSession, partner_id: str) -> list:

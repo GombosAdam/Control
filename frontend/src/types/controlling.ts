@@ -62,6 +62,8 @@ export interface PurchaseOrder {
   department_name: string | null;
   budget_line_id: string;
   budget_line_name: string | null;
+  partner_id: string | null;
+  partner_name: string | null;
   supplier_name: string;
   supplier_tax_id: string | null;
   amount: number;
@@ -77,6 +79,20 @@ export interface PurchaseOrder {
   goods_receipt: GoodsReceiptSummary | null;
 }
 
+export interface AccountMaster {
+  code: string;
+  name: string;
+  name_en: string | null;
+  account_type: 'asset' | 'liability' | 'revenue' | 'expense' | 'tax';
+  pnl_category: string | null;
+  parent_code: string | null;
+  sort_order: number;
+  is_active: boolean;
+  is_header: boolean;
+  normal_side: string | null;
+  children?: AccountMaster[];
+}
+
 export type MatchStatus = 'unmatched' | 'matched' | 'mismatch' | 'posted';
 
 export interface AccountingEntry {
@@ -85,6 +101,7 @@ export interface AccountingEntry {
   purchase_order_id: string | null;
   po_number: string | null;
   account_code: string;
+  account_name: string | null;
   department_id: string;
   department_name: string | null;
   amount: number;
@@ -133,6 +150,8 @@ export interface CommitmentReport {
   id: string;
   po_number: string;
   department_name: string | null;
+  partner_id: string | null;
+  partner_name: string | null;
   supplier_name: string;
   amount: number;
   currency: string;

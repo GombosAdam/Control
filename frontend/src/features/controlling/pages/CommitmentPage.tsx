@@ -60,7 +60,7 @@ export function CommitmentPage() {
             <tr key={po.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
               <td style={{ padding: '8px 10px', fontWeight: 600, color: '#06B6D4' }}>{po.po_number}</td>
               <td style={{ padding: '8px 10px' }}>{po.department_name}</td>
-              <td style={{ padding: '8px 10px' }}>{po.supplier_name}</td>
+              <td style={{ padding: '8px 10px' }}>{po.partner_name || po.supplier_name}</td>
               <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(po.amount, po.currency)}</td>
               <td style={{ padding: '8px 10px', fontFamily: 'monospace' }}>{po.accounting_code}</td>
               <td style={{ padding: '8px 10px' }}>

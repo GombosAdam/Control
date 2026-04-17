@@ -273,7 +273,7 @@ def get_or_create_admin(db):
 
 
 def ensure_users(db, admin_id):
-    hashed = pwd_context.hash("seed2023!")
+    hashed = pwd_context.hash("Demo123")
     user_map = {}
     for email, full_name, role in USERS_DATA:
         existing = db.execute(text("SELECT id FROM users WHERE email = :e"), {"e": email}).fetchone()

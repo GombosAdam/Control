@@ -5,6 +5,7 @@ from common.models.invoice import Invoice, InvoiceStatus
 from common.models.extraction import ExtractionResult
 from common.models.accounting_entry import AccountingEntry
 from common.models.accounting_template import AccountingTemplate
+from common.models.account_master import AccountMaster
 from common.exceptions import NotFoundError
 
 
@@ -140,6 +141,15 @@ class AccountingService:
         )
         entries = result.scalars().all()
 
+        # Batch-load account names from account_master
+        entry_codes = {e.account_code for e in entries if e.account_code}
+        account_names = {}
+        if entry_codes:
+            am_result = await db.execute(
+                select(AccountMaster.code, AccountMaster.name).where(AccountMaster.code.in_(entry_codes))
+            )
+            account_names = {r[0]: r[1] for r in am_result.all()}
+
         items = []
         for e in entries:
             items.append({
@@ -148,9 +158,10 @@ class AccountingService:
                 "purchase_order_id": e.purchase_order_id,
                 "po_number": e.purchase_order.po_number if e.purchase_order else None,
                 "account_code": e.account_code,
+                "account_name": account_names.get(e.account_code),
                 "department_id": e.department_id,
                 "department_name": e.department.name if e.department else None,
-                "amount": e.amount,
+                "amount": float(e.amount),
                 "currency": e.currency,
                 "period": e.period,
                 "entry_type": e.entry_type.value,

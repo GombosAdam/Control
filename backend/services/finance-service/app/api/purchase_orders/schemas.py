@@ -11,6 +11,7 @@ class PurchaseOrderCreate(BaseModel):
     po_number: str | None = None
     department_id: str
     budget_line_id: str
+    partner_id: str | None = None
     supplier_name: str
     supplier_tax_id: str | None = None
     lines: list[PurchaseOrderLineCreate]
@@ -27,9 +28,11 @@ class PurchaseOrderCreate(BaseModel):
 
 
 class PurchaseOrderUpdate(BaseModel):
+    partner_id: str | None = None
     supplier_name: str | None = None
     supplier_tax_id: str | None = None
     amount: float | None = None
+    accounting_code: str | None = None
     description: str | None = None
 
 

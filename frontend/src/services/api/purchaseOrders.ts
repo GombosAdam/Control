@@ -6,7 +6,7 @@ export const purchaseOrdersApi = {
 
   create: (data: {
     po_number?: string; department_id: string; budget_line_id: string;
-    supplier_name: string; supplier_tax_id?: string;
+    partner_id?: string; supplier_name: string; supplier_tax_id?: string;
     lines: { description: string; quantity: number; unit_price: number }[];
     currency?: string; accounting_code: string; description?: string;
   }) =>
