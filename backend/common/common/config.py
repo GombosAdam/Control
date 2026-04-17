@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     DAILY_DIGEST_ENABLED: bool = False
     DAILY_DIGEST_HOUR: int = 8
 
+    # Workflow Engine
+    WORKFLOW_ENGINE_ENABLED: bool = False
+
     # App
     APP_NAME: str = "Financial Planning and Controls"
     APP_ENV: str = "development"

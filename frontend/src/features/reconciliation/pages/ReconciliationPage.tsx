@@ -64,7 +64,11 @@ export function ReconciliationPage() {
 
   const openManual = async (invoiceId: string) => {
     setManualPO(invoiceId);
-    const data = await purchaseOrdersApi.list({ status: 'received', limit: 100 });
+    const [sentData, receivedData] = await Promise.all([
+      purchaseOrdersApi.list({ status: 'sent', limit: 100 }),
+      purchaseOrdersApi.list({ status: 'received', limit: 100 }),
+    ]);
+    const data = { items: [...sentData.items, ...receivedData.items] };
     setPos(data.items);
   };
 

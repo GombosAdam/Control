@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Package, Trash2, Check, XCircle, Clock, Circle, MessageSquare, X } from 'lucide-react';
+import { Plus, Package, Trash2, Check, XCircle, Clock, Circle, MessageSquare, X, Send } from 'lucide-react';
 import { purchaseOrdersApi } from '../../../services/api/purchaseOrders';
 import { departmentsApi } from '../../../services/api/departments';
 import { budgetApi } from '../../../services/api/budget';
@@ -26,7 +26,9 @@ interface ApprovalStep {
 
 const statusColors: Record<string, { bg: string; color: string }> = {
   draft: { bg: '#fef3c7', color: '#92400e' },
+  pending_approval: { bg: '#fef3c7', color: '#92400e' },
   approved: { bg: '#d1fae5', color: '#065f46' },
+  sent: { bg: '#e0e7ff', color: '#3730a3' },
   received: { bg: '#dbeafe', color: '#1e40af' },
   closed: { bg: '#f3f4f6', color: '#374151' },
   cancelled: { bg: '#fecaca', color: '#991b1b' },
@@ -142,7 +144,7 @@ export function OrdersPage() {
             )}
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={selectStyle}>
               <option value="">{t('invoices.status')} - {t('invoices.all')}</option>
-              {['draft', 'approved', 'received', 'closed', 'cancelled'].map(s =>
+              {['draft', 'pending_approval', 'approved', 'sent', 'received', 'closed', 'cancelled'].map(s =>
                 <option key={s} value={s}>{s}</option>
               )}
             </select>
@@ -185,10 +187,13 @@ export function OrdersPage() {
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: 700, fontSize: '14px' }}>{formatCurrency(po.amount, po.currency)}</div>
                     <div style={{ display: 'flex', gap: '4px', marginTop: '4px', justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
-                      {po.status === 'approved' && (
+                      {po.status === 'approved' && po.created_by === user?.id && (
+                        <button onClick={async () => { await purchaseOrdersApi.send(po.id); load(); }} title="Kiküldés szállítónak" style={{ ...actionBtn, background: '#e0e7ff', borderColor: '#818cf8' }}><Send size={12} /></button>
+                      )}
+                      {po.status === 'sent' && (
                         <button onClick={() => setReceiveModal(po.id)} title="Átvétel" style={actionBtn}><Package size={12} /></button>
                       )}
-                      {po.status === 'draft' && (
+                      {po.status === 'draft' && user?.role === 'admin' && (
                         <button onClick={() => handleDelete(po.id)} title="Delete" style={actionBtn}><Trash2 size={12} /></button>
                       )}
                     </div>
@@ -273,35 +278,44 @@ export function OrdersPage() {
                             "{step.comment}"
                           </div>
                         )}
-                        {/* Decision buttons for pending step */}
-                        {step.status === 'pending' && (
-                          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                            <button
-                              onClick={() => handleApprovalDecision(step, 'approved')}
-                              disabled={approvalLoading}
-                              style={{
-                                padding: '6px 16px', borderRadius: '6px', border: 'none',
-                                background: '#10B981', color: '#fff', cursor: 'pointer',
-                                fontSize: '12px', fontWeight: 600, opacity: approvalLoading ? 0.5 : 1,
-                                display: 'flex', alignItems: 'center', gap: '6px',
-                              }}
-                            >
-                              <Check size={14} /> {t('approvals.approve')}
-                            </button>
-                            <button
-                              onClick={() => setRejectStep(step)}
-                              disabled={approvalLoading}
-                              style={{
-                                padding: '6px 16px', borderRadius: '6px', border: 'none',
-                                background: '#EF4444', color: '#fff', cursor: 'pointer',
-                                fontSize: '12px', fontWeight: 600, opacity: approvalLoading ? 0.5 : 1,
-                                display: 'flex', alignItems: 'center', gap: '6px',
-                              }}
-                            >
-                              <XCircle size={14} /> {t('approvals.reject')}
-                            </button>
-                          </div>
-                        )}
+                        {/* Decision buttons for pending step — only show to authorized users */}
+                        {step.status === 'pending' && (() => {
+                          const po = items.find(i => i.id === selectedId);
+                          const isCreator = po?.created_by === user?.id;
+                          const isAssignedUser = step.assigned_to === user?.id;
+                          const isAssignedRole = step.assigned_role === user?.role;
+                          const isAdmin = user?.role === 'admin';
+                          const canDecide = !isCreator && (isAssignedUser || isAssignedRole || isAdmin);
+                          if (!canDecide) return null;
+                          return (
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                              <button
+                                onClick={() => handleApprovalDecision(step, 'approved')}
+                                disabled={approvalLoading}
+                                style={{
+                                  padding: '6px 16px', borderRadius: '6px', border: 'none',
+                                  background: '#10B981', color: '#fff', cursor: 'pointer',
+                                  fontSize: '12px', fontWeight: 600, opacity: approvalLoading ? 0.5 : 1,
+                                  display: 'flex', alignItems: 'center', gap: '6px',
+                                }}
+                              >
+                                <Check size={14} /> {t('approvals.approve')}
+                              </button>
+                              <button
+                                onClick={() => setRejectStep(step)}
+                                disabled={approvalLoading}
+                                style={{
+                                  padding: '6px 16px', borderRadius: '6px', border: 'none',
+                                  background: '#EF4444', color: '#fff', cursor: 'pointer',
+                                  fontSize: '12px', fontWeight: 600, opacity: approvalLoading ? 0.5 : 1,
+                                  display: 'flex', alignItems: 'center', gap: '6px',
+                                }}
+                              >
+                                <XCircle size={14} /> {t('approvals.reject')}
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   );

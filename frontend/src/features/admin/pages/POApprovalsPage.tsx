@@ -29,7 +29,9 @@ interface POWithApprovals {
 
 const poStatusColors: Record<string, { bg: string; color: string }> = {
   draft: { bg: '#fef3c7', color: '#92400e' },
+  pending_approval: { bg: '#fef3c7', color: '#92400e' },
   approved: { bg: '#d1fae5', color: '#065f46' },
+  sent: { bg: '#e0e7ff', color: '#3730a3' },
   received: { bg: '#dbeafe', color: '#1e40af' },
   closed: { bg: '#f3f4f6', color: '#374151' },
   cancelled: { bg: '#fecaca', color: '#991b1b' },
@@ -174,7 +176,7 @@ export function POApprovalsPage() {
         </select>
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }} style={selectStyle}>
           <option value="">{t('invoices.status')} - {t('invoices.all')}</option>
-          {['draft', 'approved', 'received', 'closed', 'cancelled'].map(s =>
+          {['draft', 'pending_approval', 'approved', 'sent', 'received', 'closed', 'cancelled'].map(s =>
             <option key={s} value={s}>{s}</option>
           )}
         </select>

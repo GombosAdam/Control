@@ -36,7 +36,7 @@ export interface BudgetLine {
   updated_at: string;
 }
 
-export type POStatus = 'draft' | 'approved' | 'received' | 'closed' | 'cancelled';
+export type POStatus = 'draft' | 'pending_approval' | 'approved' | 'sent' | 'received' | 'closed' | 'cancelled';
 
 export interface PurchaseOrderLine {
   id: string;

@@ -9,7 +9,9 @@ from common.database import Base
 
 class POStatus(str, enum.Enum):
     draft = "draft"
+    pending_approval = "pending_approval"
     approved = "approved"
+    sent = "sent"
     received = "received"
     closed = "closed"
     cancelled = "cancelled"

@@ -58,7 +58,16 @@ async def approve_purchase_order(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await PurchaseOrderService.approve(db, po_id, current_user.id)
+    return await PurchaseOrderService.approve(db, po_id, current_user.id, current_user.role.value)
+
+
+@router.post("/{po_id}/send")
+async def send_purchase_order(
+    po_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await PurchaseOrderService.send(db, po_id, current_user.id)
 
 
 @router.post("/{po_id}/receive")

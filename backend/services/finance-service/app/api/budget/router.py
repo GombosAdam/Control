@@ -20,6 +20,12 @@ async def list_budget_lines(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Budget ownership: department_head sees only own department
+    if current_user.role.value == "department_head":
+        department_id = current_user.department_id
+    elif current_user.role.value in ("clerk", "reviewer"):
+        department_id = current_user.department_id
+    # admin, cfo, accountant: full access
     return await BudgetService.list_lines(db, department_id, period, status, plan_type, scenario_id, page, limit)
 
 
@@ -48,7 +54,7 @@ async def approve_budget_line(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.admin, UserRole.cfo, UserRole.department_head)),
 ):
-    return await BudgetService.approve(db, line_id, current_user.id)
+    return await BudgetService.approve(db, line_id, current_user.id, current_user.role.value, current_user.department_id)
 
 
 @router.post("/lines/{line_id}/lock")
@@ -98,7 +104,7 @@ async def bulk_approve(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.admin, UserRole.cfo, UserRole.department_head)),
 ):
-    return await BudgetService.bulk_approve(db, data.line_ids, current_user.id)
+    return await BudgetService.bulk_approve(db, data.line_ids, current_user.id, current_user.role.value, current_user.department_id)
 
 
 @router.post("/lines/bulk-lock")

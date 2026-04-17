@@ -8,7 +8,7 @@ from common.models.accounting_entry import AccountingEntry
 from common.models.audit import AuditLog
 from common.models.user import User
 from common.models.account_master import AccountMaster
-from common.exceptions import NotFoundError, ValidationError
+from common.exceptions import NotFoundError, ValidationError, AuthorizationError
 
 
 class BudgetService:
@@ -113,12 +113,16 @@ class BudgetService:
         return BudgetService._to_dict(line)
 
     @staticmethod
-    async def approve(db: AsyncSession, line_id: str, user_id: str) -> dict:
+    async def approve(db: AsyncSession, line_id: str, user_id: str,
+                      user_role: str = "admin", user_department_id: str | None = None) -> dict:
         line = await db.get(BudgetLine, line_id)
         if not line:
             raise NotFoundError("Budget line not found")
         if line.status != BudgetStatus.draft:
             raise ValidationError("Only draft lines can be approved")
+        # Department head can only approve own department's budget
+        if user_role == "department_head" and line.department_id != user_department_id:
+            raise AuthorizationError("Csak a saját osztályod költségvetését hagyhatod jóvá.")
         line.status = BudgetStatus.approved
         line.approved_by = user_id
         await BudgetService._write_audit(db, user_id, "budget_line.approve", line, {
@@ -162,7 +166,8 @@ class BudgetService:
         return BudgetService._to_dict(line)
 
     @staticmethod
-    async def bulk_approve(db: AsyncSession, line_ids: list[str], user_id: str) -> dict:
+    async def bulk_approve(db: AsyncSession, line_ids: list[str], user_id: str,
+                           user_role: str = "admin", user_department_id: str | None = None) -> dict:
         approved = []
         errors = []
         for lid in line_ids:
@@ -175,6 +180,9 @@ class BudgetService:
                 continue
             if line.planned_amount <= 0:
                 errors.append({"id": lid, "reason": "Planned amount must be > 0"})
+                continue
+            if user_role == "department_head" and line.department_id != user_department_id:
+                errors.append({"id": lid, "reason": "Csak a saját osztályod költségvetését hagyhatod jóvá."})
                 continue
             line.status = BudgetStatus.approved
             line.approved_by = user_id
@@ -399,7 +407,7 @@ class BudgetService:
         committed = await db.scalar(
             select(func.coalesce(func.sum(PurchaseOrder.amount), 0)).where(
                 PurchaseOrder.budget_line_id == line.id,
-                PurchaseOrder.status.in_([POStatus.draft, POStatus.approved, POStatus.received, POStatus.closed]),
+                PurchaseOrder.status.in_([POStatus.draft, POStatus.pending_approval, POStatus.approved, POStatus.sent, POStatus.received, POStatus.closed]),
             )
         ) or 0
 
@@ -461,7 +469,7 @@ class BudgetService:
         result = await db.execute(
             select(PurchaseOrder).where(
                 PurchaseOrder.budget_line_id == line_id,
-                PurchaseOrder.status.in_([POStatus.draft, POStatus.approved, POStatus.received, POStatus.closed]),
+                PurchaseOrder.status.in_([POStatus.draft, POStatus.pending_approval, POStatus.approved, POStatus.sent, POStatus.received, POStatus.closed]),
             ).order_by(PurchaseOrder.created_at.desc())
         )
         pos = result.scalars().all()

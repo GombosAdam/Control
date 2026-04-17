@@ -184,7 +184,20 @@ class InvoiceService:
         if existing.scalar_one_or_none():
             raise ValidationError("Approval chain already exists for this invoice")
 
-        # Create 3-step approval chain
+        from common.workflow.bridge import WorkflowBridge
+        result = await WorkflowBridge.start_invoice_approval(db, invoice, user_id)
+
+        # Audit
+        log = AuditLog(user_id=user_id, action="invoice.submit_approval", entity_type="invoice", entity_id=invoice_id, details={"steps": 3})
+        db.add(log)
+        await db.commit()
+        return {"invoice_id": invoice_id, "steps_created": 3}
+
+    @staticmethod
+    async def _legacy_submit_for_approval(db: AsyncSession, invoice_id: str, user_id: str) -> dict:
+        """Legacy: Create 3-step approval chain."""
+        invoice = await InvoiceService.get_invoice_model(db, invoice_id)
+
         steps = [
             (1, "Ellenőrzés", "reviewer"),
             (2, "Jóváhagyás", "department_head"),
@@ -200,17 +213,55 @@ class InvoiceService:
             )
             db.add(approval)
 
-        # Update invoice status to in_approval
         invoice.status = InvoiceStatus.in_approval
-
-        # Audit
-        log = AuditLog(user_id=user_id, action="invoice.submit_approval", entity_type="invoice", entity_id=invoice_id, details={"steps": 3})
-        db.add(log)
-        await db.commit()
         return {"invoice_id": invoice_id, "steps_created": 3}
 
     @staticmethod
     async def get_approval_status(db: AsyncSession, invoice_id: str) -> list[dict]:
+        from common.config import settings
+        if settings.WORKFLOW_ENGINE_ENABLED:
+            return await InvoiceService._engine_approval_status(db, invoice_id)
+        return await InvoiceService._legacy_approval_status(db, invoice_id)
+
+    @staticmethod
+    async def _engine_approval_status(db: AsyncSession, invoice_id: str) -> list[dict]:
+        from common.models.workflow_instance import WorkflowInstance
+        from common.models.workflow_task import WorkflowTask
+        from common.models.user import User
+        instance_result = await db.execute(
+            select(WorkflowInstance).where(
+                WorkflowInstance.entity_type == "invoice",
+                WorkflowInstance.entity_id == invoice_id,
+            ).order_by(WorkflowInstance.created_at.desc())
+        )
+        instance = instance_result.scalar_one_or_none()
+        if not instance:
+            return []
+        task_result = await db.execute(
+            select(WorkflowTask).where(
+                WorkflowTask.instance_id == instance.id,
+            ).order_by(WorkflowTask.step_order)
+        )
+        tasks = task_result.scalars().all()
+        items = []
+        for t in tasks:
+            decider = await db.get(User, t.decided_by) if t.decided_by else None
+            items.append({
+                "id": t.id,
+                "step": t.step_order,
+                "step_name": t.step_name,
+                "status": t.status.value,
+                "assigned_role": t.assigned_role,
+                "decided_by": t.decided_by,
+                "decider_name": decider.full_name if decider else None,
+                "decided_at": t.decided_at.isoformat() if t.decided_at else None,
+                "comment": t.comment,
+                "created_at": t.created_at.isoformat(),
+            })
+        return items
+
+    @staticmethod
+    async def _legacy_approval_status(db: AsyncSession, invoice_id: str) -> list[dict]:
         result = await db.execute(
             select(InvoiceApproval).where(
                 InvoiceApproval.invoice_id == invoice_id
@@ -238,6 +289,18 @@ class InvoiceService:
         if decision not in ("approved", "rejected"):
             raise ValidationError("Decision must be 'approved' or 'rejected'")
 
+        from common.workflow.bridge import WorkflowBridge
+        result = await WorkflowBridge.decide_invoice_step(
+            db, invoice_id, step, decision, comment, user_id, user_role
+        )
+        await db.commit()
+        return result
+
+    @staticmethod
+    async def _legacy_decide_approval(db: AsyncSession, invoice_id: str, step: int,
+                                       decision: str, comment: str | None, user_id: str,
+                                       user_role: str = "") -> dict:
+        """Legacy: Approve or reject a specific step."""
         result = await db.execute(
             select(InvoiceApproval).where(
                 InvoiceApproval.invoice_id == invoice_id,
@@ -265,10 +328,8 @@ class InvoiceService:
         db.add(log)
 
         if decision == "rejected":
-            # Reject: set invoice to rejected, clear PO link, mark remaining steps as cancelled
             invoice = await InvoiceService.get_invoice_model(db, invoice_id)
             invoice.status = InvoiceStatus.rejected
-            # Clear PO link to free up budget commitment
             invoice.purchase_order_id = None
             invoice.match_status = "unmatched"
             invoice.accounting_code = None
@@ -281,7 +342,6 @@ class InvoiceService:
             for rem in remaining.scalars().all():
                 rem.status = "cancelled"
         else:
-            # Approved: activate next step or finalize
             next_result = await db.execute(
                 select(InvoiceApproval).where(
                     InvoiceApproval.invoice_id == invoice_id,
@@ -292,23 +352,64 @@ class InvoiceService:
             if next_step:
                 next_step.status = "pending"
             else:
-                # All steps done - move to awaiting_match (requires PO reconciliation)
                 invoice = await InvoiceService.get_invoice_model(db, invoice_id)
                 invoice.status = InvoiceStatus.awaiting_match
                 invoice.reviewed_by_id = user_id
                 invoice.approved_at = datetime.utcnow()
 
-        await db.commit()
         return {"invoice_id": invoice_id, "step": step, "decision": decision}
 
     @staticmethod
     async def get_pending_approvals(db: AsyncSession, role: str | None = None) -> list[dict]:
         """Get all invoices with pending approval steps, optionally filtered by role."""
+        from common.config import settings
+        if settings.WORKFLOW_ENGINE_ENABLED:
+            return await InvoiceService._engine_pending_approvals(db, role)
+        return await InvoiceService._legacy_pending_approvals(db, role)
+
+    @staticmethod
+    async def _engine_pending_approvals(db: AsyncSession, role: str | None = None) -> list[dict]:
+        from common.models.workflow_task import WorkflowTask, TaskStatus
+        from common.models.workflow_instance import WorkflowInstance
+        query = select(WorkflowTask).join(
+            WorkflowInstance, WorkflowTask.instance_id == WorkflowInstance.id
+        ).where(
+            WorkflowTask.status == TaskStatus.pending,
+            WorkflowInstance.entity_type == "invoice",
+        )
+        if role:
+            query = query.where(WorkflowTask.assigned_role == role)
+        query = query.order_by(WorkflowTask.created_at)
+        result = await db.execute(query)
+        tasks = result.scalars().all()
+
+        items = []
+        seen_invoices = set()
+        for t in tasks:
+            instance = await db.get(WorkflowInstance, t.instance_id)
+            if not instance or instance.entity_id in seen_invoices:
+                continue
+            seen_invoices.add(instance.entity_id)
+            invoice = await db.get(Invoice, instance.entity_id)
+            items.append({
+                "invoice_id": instance.entity_id,
+                "invoice_number": invoice.invoice_number if invoice else None,
+                "original_filename": invoice.original_filename if invoice else None,
+                "gross_amount": invoice.gross_amount if invoice else None,
+                "currency": invoice.currency if invoice else "HUF",
+                "step": t.step_order,
+                "step_name": t.step_name,
+                "assigned_role": t.assigned_role,
+                "created_at": t.created_at.isoformat(),
+            })
+        return items
+
+    @staticmethod
+    async def _legacy_pending_approvals(db: AsyncSession, role: str | None = None) -> list[dict]:
         query = select(InvoiceApproval).where(InvoiceApproval.status == "pending")
         if role:
             query = query.where(InvoiceApproval.assigned_role == role)
         query = query.order_by(InvoiceApproval.created_at)
-
         result = await db.execute(query)
         approvals = result.scalars().all()
 

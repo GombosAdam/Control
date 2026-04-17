@@ -137,7 +137,7 @@ class PurchaseOrderService:
         committed = await db.scalar(
             select(func.coalesce(func.sum(PurchaseOrder.amount), 0)).where(
                 PurchaseOrder.budget_line_id == budget_line.id,
-                PurchaseOrder.status.in_([POStatus.draft, POStatus.approved, POStatus.received, POStatus.closed]),
+                PurchaseOrder.status.in_([POStatus.draft, POStatus.pending_approval, POStatus.approved, POStatus.sent, POStatus.received, POStatus.closed]),
             )
         ) or 0
         from common.models.accounting_entry import EntryType
@@ -175,7 +175,9 @@ class PurchaseOrderService:
             db.add(po_line)
 
         # Auto-submit for approval
-        await PurchaseOrderService._create_approval_chain(db, po, user_id)
+        from common.workflow.bridge import WorkflowBridge
+        await WorkflowBridge.start_po_approval(db, po, user_id)
+        po.status = POStatus.pending_approval
 
         await db.commit()
         await db.refresh(po)
@@ -190,8 +192,8 @@ class PurchaseOrderService:
         return PurchaseOrderService._to_dict(po)
 
     @staticmethod
-    async def _create_approval_chain(db: AsyncSession, po: PurchaseOrder, user_id: str) -> None:
-        """Create dynamic approval chain by walking up the position hierarchy."""
+    async def _legacy_create_approval_chain(db: AsyncSession, po: PurchaseOrder, user_id: str) -> None:
+        """Legacy: Create dynamic approval chain by walking up the position hierarchy."""
         # Check for existing chain
         existing = await db.execute(
             select(PurchaseOrderApproval).where(
@@ -270,6 +272,52 @@ class PurchaseOrderService:
 
     @staticmethod
     async def get_approval_status(db: AsyncSession, po_id: str) -> list[dict]:
+        from common.config import settings
+        if settings.WORKFLOW_ENGINE_ENABLED:
+            return await PurchaseOrderService._engine_approval_status(db, po_id)
+        return await PurchaseOrderService._legacy_approval_status(db, po_id)
+
+    @staticmethod
+    async def _engine_approval_status(db: AsyncSession, po_id: str) -> list[dict]:
+        from common.models.workflow_instance import WorkflowInstance, WorkflowStatus
+        from common.models.workflow_task import WorkflowTask
+        instance_result = await db.execute(
+            select(WorkflowInstance).where(
+                WorkflowInstance.entity_type == "purchase_order",
+                WorkflowInstance.entity_id == po_id,
+            ).order_by(WorkflowInstance.created_at.desc())
+        )
+        instance = instance_result.scalar_one_or_none()
+        if not instance:
+            return []
+        task_result = await db.execute(
+            select(WorkflowTask).where(
+                WorkflowTask.instance_id == instance.id,
+            ).order_by(WorkflowTask.step_order)
+        )
+        tasks = task_result.scalars().all()
+        items = []
+        for t in tasks:
+            assignee = await db.get(User, t.assigned_to) if t.assigned_to else None
+            decider = await db.get(User, t.decided_by) if t.decided_by else None
+            items.append({
+                "id": t.id,
+                "step": t.step_order,
+                "step_name": t.step_name,
+                "status": t.status.value,
+                "assigned_role": t.assigned_role,
+                "assigned_to": t.assigned_to,
+                "assignee_name": assignee.full_name if assignee else None,
+                "decided_by": t.decided_by,
+                "decider_name": decider.full_name if decider else None,
+                "decided_at": t.decided_at.isoformat() if t.decided_at else None,
+                "comment": t.comment,
+                "created_at": t.created_at.isoformat(),
+            })
+        return items
+
+    @staticmethod
+    async def _legacy_approval_status(db: AsyncSession, po_id: str) -> list[dict]:
         result = await db.execute(
             select(PurchaseOrderApproval).where(
                 PurchaseOrderApproval.purchase_order_id == po_id
@@ -295,6 +343,14 @@ class PurchaseOrderService:
     async def decide_po_approval(db: AsyncSession, po_id: str, step: int,
                                   decision: str, comment: str | None,
                                   user_id: str, user_role: str) -> dict:
+        from common.workflow.bridge import WorkflowBridge
+        return await WorkflowBridge.decide_po_step(db, po_id, step, decision, comment, user_id, user_role)
+
+    @staticmethod
+    async def _legacy_decide_po_approval(db: AsyncSession, po_id: str, step: int,
+                                          decision: str, comment: str | None,
+                                          user_id: str, user_role: str) -> dict:
+        """Legacy PO approval decision logic."""
         if decision not in ("approved", "rejected"):
             raise ValidationError("Decision must be 'approved' or 'rejected'")
 
@@ -400,21 +456,79 @@ class PurchaseOrderService:
         return PurchaseOrderService._to_dict(po)
 
     @staticmethod
-    async def approve(db: AsyncSession, po_id: str, user_id: str) -> dict:
-        """Legacy single-step approve -- kept for backward compatibility."""
+    async def approve(db: AsyncSession, po_id: str, user_id: str, user_role: str = "") -> dict:
+        """Approve the next pending step for this PO via the workflow engine."""
         po = await db.get(PurchaseOrder, po_id)
         if not po:
             raise NotFoundError("Purchase order not found")
-        if po.status != POStatus.draft:
-            raise ValidationError("Only draft POs can be approved")
-        po.status = POStatus.approved
-        po.approved_by = user_id
+        if po.status not in (POStatus.draft, POStatus.pending_approval):
+            raise ValidationError("Only draft or pending_approval POs can be approved")
+
+        # Prevent self-approval: the creator cannot approve their own PO
+        if po.created_by == user_id and user_role != "admin":
+            raise AuthorizationError("Saját megrendelést nem hagyhatod jóvá.")
+
+        from common.workflow.bridge import WorkflowBridge
+        from common.models.workflow_instance import WorkflowInstance, WorkflowStatus
+        from common.models.workflow_task import WorkflowTask, TaskStatus
+
+        # Find active workflow instance
+        instance_result = await db.execute(
+            select(WorkflowInstance).where(
+                WorkflowInstance.entity_type == "purchase_order",
+                WorkflowInstance.entity_id == po_id,
+                WorkflowInstance.status == WorkflowStatus.active,
+            )
+        )
+        instance = instance_result.scalar_one_or_none()
+        if not instance:
+            raise ValidationError("No active approval workflow for this PO")
+
+        # Find the first pending task
+        task_result = await db.execute(
+            select(WorkflowTask).where(
+                WorkflowTask.instance_id == instance.id,
+                WorkflowTask.status == TaskStatus.pending,
+            ).order_by(WorkflowTask.step_order)
+        )
+        task = task_result.scalar_one_or_none()
+        if not task:
+            raise ValidationError("No pending approval step found")
+
+        from common.workflow.engine import WorkflowEngine
+        engine = WorkflowEngine(db)
+        await engine.process_decision(task.id, "approved", None, user_id, user_role)
+
+        # Sync entity status
+        await db.refresh(instance)
+        if instance.status == WorkflowStatus.completed:
+            po.status = POStatus.approved
+            po.approved_by = user_id
         await db.commit()
         await db.refresh(po)
 
-        # Publish event
         asyncio.create_task(event_bus.publish("po.approved", {"purchase_order_id": po.id}))
+        return PurchaseOrderService._to_dict(po)
 
+    @staticmethod
+    async def send(db: AsyncSession, po_id: str, user_id: str) -> dict:
+        """Mark PO as sent to supplier. Only the creator can send."""
+        po = await db.get(PurchaseOrder, po_id)
+        if not po:
+            raise NotFoundError("Purchase order not found")
+        if po.status != POStatus.approved:
+            raise ValidationError("Csak jóváhagyott megrendelés küldhető ki.")
+        if po.created_by != user_id:
+            creator = await db.get(User, po.created_by)
+            creator_name = creator.full_name if creator else po.created_by
+            raise AuthorizationError(f"Csak a megrendelő ({creator_name}) küldheti ki a PO-t.")
+        po.status = POStatus.sent
+        log = AuditLog(user_id=user_id, action="po.sent", entity_type="purchase_order",
+                       entity_id=po.id, details={"po_number": po.po_number})
+        db.add(log)
+        await db.commit()
+        await db.refresh(po)
+        asyncio.create_task(event_bus.publish("po.sent", {"purchase_order_id": po.id}))
         return PurchaseOrderService._to_dict(po)
 
     @staticmethod
@@ -423,8 +537,8 @@ class PurchaseOrderService:
         po = await db.get(PurchaseOrder, po_id)
         if not po:
             raise NotFoundError("Purchase order not found")
-        if po.status != POStatus.approved:
-            raise ValidationError("Only approved POs can be received")
+        if po.status != POStatus.sent:
+            raise ValidationError("Csak kiküldött megrendelés vehető át.")
 
         # Check no existing GR
         if po.goods_receipt:

@@ -18,6 +18,9 @@ export const purchaseOrdersApi = {
   approve: (id: string) =>
     api.post(`/purchase-orders/${id}/approve`).then(r => r.data),
 
+  send: (id: string) =>
+    api.post(`/purchase-orders/${id}/send`).then(r => r.data),
+
   receive: (id: string, data?: { received_date: string; notes?: string }) =>
     api.post(`/purchase-orders/${id}/receive`, data || {}).then(r => r.data),
 

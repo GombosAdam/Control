@@ -92,6 +92,120 @@ async def lifespan(app: FastAPI):
             await db.commit()
             logger.info("Accounting templates seeded")
 
+    # Seed workflow definitions
+    from common.models.workflow_definition import WorkflowDefinition
+    from common.models.workflow_step_definition import WorkflowStepDefinition, StepType, RoutingStrategy
+    from common.models.workflow_rule import WorkflowRule, RuleType
+    async with async_session_factory() as db:
+        result = await db.execute(select(WorkflowDefinition).limit(1))
+        if not result.scalar_one_or_none():
+            # Find admin user for created_by
+            admin_result = await db.execute(select(User).where(User.email == "admin@invoice.local"))
+            admin = admin_result.scalar_one_or_none()
+            admin_id = admin.id if admin else None
+
+            # PO Approval workflow
+            po_wf = WorkflowDefinition(
+                code="po_approval",
+                name="Megrendelés jóváhagyás",
+                entity_type="purchase_order",
+                trigger_event="po.submitted",
+                created_by=admin_id,
+            )
+            db.add(po_wf)
+            await db.flush()
+
+            po_step = WorkflowStepDefinition(
+                workflow_id=po_wf.id,
+                step_order=1,
+                step_code="hierarchy_approval",
+                step_name="Hierarchia jóváhagyás",
+                step_type=StepType.approval,
+                routing_strategy=RoutingStrategy.position_hierarchy,
+                timeout_hours=48,
+                escalation_role="admin",
+            )
+            db.add(po_step)
+
+            # Rule: amount < 100,000 → max 1 hierarchy level
+            po_rule = WorkflowRule(
+                workflow_id=po_wf.id,
+                step_code="hierarchy_approval",
+                rule_type=RuleType.skip_step,
+                name="Kis összeg — max 1 szint",
+                priority=10,
+                condition={"field": "amount", "op": "lt", "value": 100000},
+                action={"max_levels": 1},
+            )
+            db.add(po_rule)
+
+            # Invoice Approval workflow
+            inv_wf = WorkflowDefinition(
+                code="invoice_approval",
+                name="Számla jóváhagyás",
+                entity_type="invoice",
+                trigger_event="invoice.submit_approval",
+                created_by=admin_id,
+            )
+            db.add(inv_wf)
+            await db.flush()
+
+            inv_steps = [
+                WorkflowStepDefinition(
+                    workflow_id=inv_wf.id, step_order=1,
+                    step_code="review", step_name="Ellenőrzés",
+                    step_type=StepType.approval,
+                    routing_strategy=RoutingStrategy.fixed_role,
+                    assigned_role="reviewer",
+                    timeout_hours=24, escalation_role="department_head",
+                ),
+                WorkflowStepDefinition(
+                    workflow_id=inv_wf.id, step_order=2,
+                    step_code="dept_approval", step_name="Jóváhagyás",
+                    step_type=StepType.approval,
+                    routing_strategy=RoutingStrategy.fixed_role,
+                    assigned_role="department_head",
+                    timeout_hours=48, escalation_role="cfo",
+                ),
+                WorkflowStepDefinition(
+                    workflow_id=inv_wf.id, step_order=3,
+                    step_code="cfo_approval", step_name="Pénzügyi jóváhagyás",
+                    step_type=StepType.approval,
+                    routing_strategy=RoutingStrategy.fixed_role,
+                    assigned_role="cfo",
+                    timeout_hours=72, escalation_role="admin",
+                ),
+            ]
+            for s in inv_steps:
+                db.add(s)
+
+            # Rule: gross_amount < 500,000 → skip CFO
+            inv_rule1 = WorkflowRule(
+                workflow_id=inv_wf.id,
+                step_code="cfo_approval",
+                rule_type=RuleType.skip_step,
+                name="Kis összeg — CFO skip",
+                priority=10,
+                condition={"field": "gross_amount", "op": "lt", "value": 500000},
+                action={"skip": True},
+            )
+            db.add(inv_rule1)
+
+            # Rule: nav_verified=true → auto-approve review step
+            inv_rule2 = WorkflowRule(
+                workflow_id=inv_wf.id,
+                step_code="review",
+                rule_type=RuleType.auto_approve,
+                name="NAV ellenőrzött — auto jóváhagyás",
+                priority=5,
+                condition={"field": "nav_verified", "op": "eq", "value": True},
+                action={"auto_approve": True},
+            )
+            db.add(inv_rule2)
+
+            await db.commit()
+            logger.info("Workflow definitions seeded (po_approval, invoice_approval)")
+
     yield
 
     await engine.dispose()
@@ -127,6 +241,7 @@ from app.api.reports.router import router as reports_router
 from app.api.planning_periods.router import router as planning_periods_router
 from app.api.positions.router import router as positions_router
 from app.api.accounts.router import router as accounts_router
+from app.api.workflows.router import router as workflows_router
 
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(dashboard_router, prefix="/api/v1/dashboard", tags=["Dashboard"])
@@ -141,6 +256,7 @@ app.include_router(reports_router, prefix="/api/v1/reports", tags=["Reports"])
 app.include_router(planning_periods_router, prefix="/api/v1/planning-periods", tags=["Planning Periods"])
 app.include_router(positions_router, prefix="/api/v1/positions", tags=["Positions"])
 app.include_router(accounts_router, prefix="/api/v1/accounts", tags=["Accounts"])
+app.include_router(workflows_router, prefix="/api/v1/workflows", tags=["Workflows"])
 
 
 @app.get("/")

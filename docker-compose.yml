@@ -115,6 +115,36 @@ services:
       redis:
         condition: service_healthy
 
+  workflow-celery:
+    build:
+      context: ./backend
+      dockerfile: services/finance-service/Dockerfile
+    container_name: invoice-workflow-celery
+    command: celery -A app.workers.celery_app:celery_app worker --loglevel=info --concurrency=2 -Q workflow
+    environment:
+      <<: *common-env
+      WORKFLOW_ENGINE_ENABLED: ${WORKFLOW_ENGINE_ENABLED:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  workflow-celery-beat:
+    build:
+      context: ./backend
+      dockerfile: services/finance-service/Dockerfile
+    container_name: invoice-workflow-celery-beat
+    command: celery -A app.workers.celery_app:celery_app beat --loglevel=info
+    environment:
+      <<: *common-env
+      WORKFLOW_ENGINE_ENABLED: ${WORKFLOW_ENGINE_ENABLED:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   redis_data:

@@ -83,7 +83,7 @@ class ReconciliationService:
         # Match by partner_id first (if invoice has partner), fallback to supplier_tax_id
         from sqlalchemy import or_
         po_filters = [
-            PurchaseOrder.status == POStatus.received,
+            PurchaseOrder.status.in_([POStatus.sent, POStatus.received]),
             PurchaseOrder.id.notin_(matched_po_ids),
         ]
         if invoice.partner_id:
@@ -103,8 +103,8 @@ class ReconciliationService:
             return {"status": "mismatch", "reason": "No matching PO found for supplier"}
 
         for po in pos:
-            tolerance = po.amount * 0.03
-            if abs(invoice_amount - po.amount) <= tolerance:
+            tolerance = float(po.amount) * 0.03
+            if abs(float(invoice_amount) - float(po.amount)) <= tolerance:
                 invoice.purchase_order_id = po.id
                 invoice.match_status = "matched"
                 invoice.status = InvoiceStatus.matched
@@ -132,8 +132,8 @@ class ReconciliationService:
         po = await db.get(PurchaseOrder, po_id)
         if not po:
             raise NotFoundError("Purchase order", po_id)
-        if po.status != POStatus.received:
-            raise ValidationError("PO must have a goods receipt before matching")
+        if po.status not in (POStatus.sent, POStatus.received):
+            raise ValidationError("PO must be sent or received before matching")
 
         # Check PO not already matched to another invoice
         existing = await db.execute(

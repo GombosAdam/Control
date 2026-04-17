@@ -22,6 +22,12 @@ from common.models.position import Position
 from common.models.permission import Permission, RolePermission
 from common.models.department_budget_master import DepartmentBudgetMaster
 from common.models.account_master import AccountMaster, AccountType
+from common.models.workflow_definition import WorkflowDefinition
+from common.models.workflow_step_definition import WorkflowStepDefinition
+from common.models.workflow_instance import WorkflowInstance
+from common.models.workflow_task import WorkflowTask
+from common.models.workflow_rule import WorkflowRule
+from common.models.delegation import Delegation
 
 __all__ = [
     "User", "Invoice", "InvoiceLine", "ExtractionResult",
@@ -33,4 +39,7 @@ __all__ = [
     "AIEnrichment", "PlanningPeriod", "Position",
     "Permission", "RolePermission", "DepartmentBudgetMaster",
     "AccountMaster", "AccountType",
+    "WorkflowDefinition", "WorkflowStepDefinition",
+    "WorkflowInstance", "WorkflowTask", "WorkflowRule",
+    "Delegation",
 ]
