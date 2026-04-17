@@ -15,6 +15,11 @@ from app.models.purchase_order_approval import PurchaseOrderApproval
 from app.models.accounting_template import AccountingTemplate
 from app.models.cfo_metric import CfoMetric
 from app.models.planning_period import PlanningPeriod
+from app.models.nav_config import NavConfig
+from app.models.nav_transaction import NavTransaction
+from app.models.nav_sync_log import NavSyncLog
+from app.models.position import Position
+from app.models.department_budget_master import DepartmentBudgetMaster
 
 __all__ = [
     "User", "Invoice", "InvoiceLine", "ExtractionResult",
@@ -22,5 +27,6 @@ __all__ = [
     "Department", "BudgetLine", "PurchaseOrder", "AccountingEntry",
     "BudgetLineComment", "Scenario", "InvoiceApproval",
     "PurchaseOrderApproval", "AccountingTemplate", "CfoMetric",
-    "PlanningPeriod",
+    "PlanningPeriod", "NavConfig", "NavTransaction", "NavSyncLog",
+    "Position", "DepartmentBudgetMaster",
 ]

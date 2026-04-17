@@ -1,4 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+
+class PurchaseOrderLineCreate(BaseModel):
+    description: str
+    quantity: float
+    unit_price: float
 
 
 class PurchaseOrderCreate(BaseModel):
@@ -7,10 +13,17 @@ class PurchaseOrderCreate(BaseModel):
     budget_line_id: str
     supplier_name: str
     supplier_tax_id: str | None = None
-    amount: float
+    lines: list[PurchaseOrderLineCreate]
     currency: str = "HUF"
     accounting_code: str
     description: str | None = None
+
+    @field_validator("lines")
+    @classmethod
+    def at_least_one_line(cls, v):
+        if not v:
+            raise ValueError("At least one line item is required")
+        return v
 
 
 class PurchaseOrderUpdate(BaseModel):
@@ -23,3 +36,8 @@ class PurchaseOrderUpdate(BaseModel):
 class POApprovalDecisionRequest(BaseModel):
     decision: str  # "approved" or "rejected"
     comment: str | None = None
+
+
+class GoodsReceiptCreate(BaseModel):
+    received_date: str
+    notes: str | None = None

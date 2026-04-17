@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     LLM_TEMPERATURE: float = 0.0
     VLM_MODEL: str = "qwen2.5vl:7b"
 
+    # Anthropic API (Claude)
+    ANTHROPIC_API_KEY: str = ""
+    CLAUDE_MODEL: str = "claude-sonnet-4-20250514"
+
     # Text-to-SQL pipeline
     SQL_MODEL: str = "qwen3:14b"
     ANSWER_MODEL: str = "qwen3:14b"

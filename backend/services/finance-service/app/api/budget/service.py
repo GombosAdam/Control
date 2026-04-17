@@ -354,12 +354,22 @@ class BudgetService:
 
     @staticmethod
     async def get_availability(db: AsyncSession, dept_id: str) -> list[dict]:
-        result = await db.execute(
-            select(BudgetLine).where(
-                BudgetLine.department_id == dept_id,
-                BudgetLine.status.in_([BudgetStatus.approved, BudgetStatus.locked]),
-            ).order_by(BudgetLine.period, BudgetLine.account_code)
+        # Check if department has budget master entries
+        from sqlalchemy import text
+        master_result = await db.execute(
+            text("SELECT account_code FROM department_budget_master WHERE department_id = :did AND is_active = true"),
+            {"did": dept_id},
         )
+        allowed_codes = [r[0] for r in master_result.all()]
+
+        query = select(BudgetLine).where(
+            BudgetLine.department_id == dept_id,
+            BudgetLine.status.in_([BudgetStatus.approved, BudgetStatus.locked]),
+        )
+        if allowed_codes:
+            query = query.where(BudgetLine.account_code.in_(allowed_codes))
+
+        result = await db.execute(query.order_by(BudgetLine.period, BudgetLine.account_code))
         lines = result.scalars().all()
 
         items = []
@@ -420,6 +430,53 @@ class BudgetService:
             "approver_name": line.approver.name if line.approver and hasattr(line.approver, 'name') else (line.approver.email if line.approver else None),
             "created_at": line.created_at.isoformat(),
             "updated_at": line.updated_at.isoformat(),
+        }
+
+    @staticmethod
+    async def get_line_budget_status(db: AsyncSession, line_id: str) -> dict:
+        """Get budget line with PO breakdown — for PO creation & approval context."""
+        line = await db.get(BudgetLine, line_id)
+        if not line:
+            raise NotFoundError("Budget line not found")
+
+        avail = await BudgetService._calc_availability(db, line)
+
+        # Get POs on this budget line
+        result = await db.execute(
+            select(PurchaseOrder).where(
+                PurchaseOrder.budget_line_id == line_id,
+                PurchaseOrder.status.in_([POStatus.draft, POStatus.approved, POStatus.received, POStatus.closed]),
+            ).order_by(PurchaseOrder.created_at.desc())
+        )
+        pos = result.scalars().all()
+
+        po_list = []
+        for po in pos:
+            creator_name = po.creator.full_name if po.creator else None
+            po_list.append({
+                "id": po.id,
+                "po_number": po.po_number,
+                "supplier_name": po.supplier_name,
+                "amount": po.amount,
+                "currency": po.currency,
+                "status": po.status.value,
+                "created_by_name": creator_name,
+                "created_at": po.created_at.isoformat(),
+            })
+
+        return {
+            "budget_line": {
+                "id": line.id,
+                "account_code": line.account_code,
+                "account_name": line.account_name,
+                "period": line.period,
+                "planned_amount": line.planned_amount,
+                "currency": line.currency,
+            },
+            "committed": avail["committed"],
+            "actual": avail["actual"],
+            "available": avail["available"],
+            "purchase_orders": po_list,
         }
 
     @staticmethod

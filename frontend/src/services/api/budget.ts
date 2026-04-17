@@ -22,6 +22,9 @@ export const budgetApi = {
   getAvailability: (deptId: string) =>
     api.get(`/budget/availability/${deptId}`).then(r => r.data),
 
+  getLineBudgetStatus: (lineId: string) =>
+    api.get(`/budget/lines/${lineId}/budget-status`).then(r => r.data),
+
   getLineAudit: (lineId: string, page = 1, limit = 20) =>
     api.get(`/budget/lines/${lineId}/audit`, { params: { page, limit } }).then(r => r.data),
 

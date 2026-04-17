@@ -138,6 +138,54 @@ services:
       redis:
         condition: service_healthy
 
+  nav-service:
+    build:
+      context: ./backend
+      dockerfile: services/nav-service/Dockerfile
+    container_name: invoice-nav-service
+    restart: always
+    environment:
+      <<: *common-env
+      NAV_ENCRYPTION_KEY: ${NAV_ENCRYPTION_KEY}
+      CORS_ORIGINS: https://invoice.rhcdemoaccount2.com,https://rhcdemoaccount2.com
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nav-celery:
+    build:
+      context: ./backend
+      dockerfile: services/nav-service/Dockerfile
+    container_name: invoice-nav-celery
+    restart: always
+    command: celery -A app.workers.celery_app:celery_app worker --loglevel=info --concurrency=2 -Q nav
+    environment:
+      <<: *common-env
+      NAV_ENCRYPTION_KEY: ${NAV_ENCRYPTION_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nav-celery-beat:
+    build:
+      context: ./backend
+      dockerfile: services/nav-service/Dockerfile
+    container_name: invoice-nav-celery-beat
+    restart: always
+    command: celery -A app.workers.celery_app:celery_app beat --loglevel=info
+    environment:
+      <<: *common-env
+      NAV_ENCRYPTION_KEY: ${NAV_ENCRYPTION_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   frontend:
     build:
       context: ./frontend
@@ -160,6 +208,7 @@ services:
       - ai-service
       - invoice-pipeline
       - finance-service
+      - nav-service
       - frontend
 
   qdrant:

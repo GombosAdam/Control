@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from common.dependencies import get_db, get_current_user
 from common.models.user import User
 from app.api.purchase_orders.service import PurchaseOrderService
-from app.api.purchase_orders.schemas import PurchaseOrderCreate, PurchaseOrderUpdate, POApprovalDecisionRequest
+from app.api.purchase_orders.schemas import PurchaseOrderCreate, PurchaseOrderUpdate, POApprovalDecisionRequest, GoodsReceiptCreate
 
 router = APIRouter()
 
@@ -51,10 +51,22 @@ async def approve_purchase_order(
 @router.post("/{po_id}/receive")
 async def receive_purchase_order(
     po_id: str,
+    body: GoodsReceiptCreate | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await PurchaseOrderService.receive(db, po_id)
+    received_date = body.received_date if body else None
+    notes = body.notes if body else None
+    return await PurchaseOrderService.receive(db, po_id, current_user.id, received_date, notes)
+
+
+@router.get("/{po_id}/goods-receipt")
+async def get_goods_receipt(
+    po_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await PurchaseOrderService.get_goods_receipt(db, po_id)
 
 
 @router.get("/{po_id}/approvals")

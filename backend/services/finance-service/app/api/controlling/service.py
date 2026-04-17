@@ -205,6 +205,23 @@ class ControllingService:
         Supports single period, or period_from/period_to range for quarterly/yearly aggregation.
         If planning_period_id is given, filters by it and derives period range from the planning period.
         """
+        # planning_period_id is required — without it, return empty structure
+        if not planning_period_id:
+            empty_rows = []
+            for section in PNL_STRUCTURE:
+                empty_rows.append({
+                    "key": section["key"],
+                    "label": section["label"],
+                    "is_subtotal": section["is_subtotal"],
+                    "is_editable": not section["is_subtotal"],
+                    "planned": 0, "actual": 0, "variance": 0,
+                    "variance_pct": 0, "margin_pct": 0, "children": [],
+                })
+            return {
+                "rows": empty_rows,
+                "structure": [{"key": s["key"], "label": s["label"], "is_subtotal": s["is_subtotal"]} for s in PNL_STRUCTURE],
+            }
+
         # If planning_period_id is given, derive period range from it
         if planning_period_id:
             from common.models.planning_period import PlanningPeriod

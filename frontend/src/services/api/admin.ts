@@ -33,4 +33,10 @@ export const adminApi = {
 
   gpuStop: () =>
     api.post('/admin/gpu/stop').then(r => r.data),
+
+  getPermissionMatrix: () =>
+    api.get('/admin/permissions/matrix').then(r => r.data),
+
+  updatePermission: (data: { role: string; permission_id: string; granted: boolean }) =>
+    api.put('/admin/permissions/matrix', data).then(r => r.data),
 };

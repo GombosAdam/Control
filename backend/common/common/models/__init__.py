@@ -7,6 +7,8 @@ from common.models.settings import SystemSetting
 from common.models.department import Department
 from common.models.budget_line import BudgetLine
 from common.models.purchase_order import PurchaseOrder
+from common.models.purchase_order_line import PurchaseOrderLine
+from common.models.goods_receipt import GoodsReceipt, GoodsReceiptLine
 from common.models.accounting_entry import AccountingEntry
 from common.models.budget_line_comment import BudgetLineComment
 from common.models.scenario import Scenario
@@ -16,12 +18,16 @@ from common.models.accounting_template import AccountingTemplate
 from common.models.cfo_metric import CfoMetric
 from common.models.ai_enrichment import AIEnrichment
 from common.models.planning_period import PlanningPeriod
+from common.models.position import Position
+from common.models.permission import Permission, RolePermission
 
 __all__ = [
     "User", "Invoice", "InvoiceLine", "ExtractionResult",
     "Partner", "AuditLog", "SystemSetting",
-    "Department", "BudgetLine", "PurchaseOrder", "AccountingEntry",
+    "Department", "BudgetLine", "PurchaseOrder", "PurchaseOrderLine",
+    "GoodsReceipt", "GoodsReceiptLine", "AccountingEntry",
     "BudgetLineComment", "Scenario", "InvoiceApproval",
     "PurchaseOrderApproval", "AccountingTemplate", "CfoMetric",
-    "AIEnrichment", "PlanningPeriod",
+    "AIEnrichment", "PlanningPeriod", "Position",
+    "Permission", "RolePermission",
 ]

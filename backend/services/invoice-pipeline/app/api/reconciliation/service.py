@@ -82,7 +82,7 @@ class ReconciliationService:
         result = await db.execute(
             select(PurchaseOrder).where(
                 PurchaseOrder.supplier_tax_id == supplier_tax_id,
-                PurchaseOrder.status.in_([POStatus.approved, POStatus.received]),
+                PurchaseOrder.status == POStatus.received,
                 PurchaseOrder.id.notin_(matched_po_ids),
             )
         )
@@ -123,8 +123,8 @@ class ReconciliationService:
         po = await db.get(PurchaseOrder, po_id)
         if not po:
             raise NotFoundError("Purchase order", po_id)
-        if po.status not in (POStatus.approved, POStatus.received):
-            raise ValidationError("PO must be approved or received")
+        if po.status != POStatus.received:
+            raise ValidationError("PO must have a goods receipt before matching")
 
         # Check PO not already matched to another invoice
         existing = await db.execute(

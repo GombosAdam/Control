@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db, get_current_user
 from app.models.user import User
 from app.api.v1.departments.service import DepartmentService
-from app.api.v1.departments.schemas import DepartmentCreate, DepartmentUpdate
+from app.api.v1.departments.schemas import DepartmentCreate, DepartmentUpdate, BudgetMasterSet
 
 router = APIRouter()
 
@@ -42,3 +42,33 @@ async def update_department(
     current_user: User = Depends(get_current_user),
 ):
     return await DepartmentService.update(db, dept_id, data.model_dump(exclude_unset=True))
+
+
+@router.delete("/{dept_id}")
+async def delete_department(
+    dept_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await DepartmentService.delete(db, dept_id)
+
+
+@router.get("/{dept_id}/budget-master")
+async def get_budget_master(
+    dept_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await DepartmentService.get_budget_master(db, dept_id)
+
+
+@router.put("/{dept_id}/budget-master")
+async def set_budget_master(
+    dept_id: str,
+    data: BudgetMasterSet,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await DepartmentService.set_budget_master(
+        db, dept_id, [e.model_dump() for e in data.entries]
+    )

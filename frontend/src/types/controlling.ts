@@ -38,6 +38,23 @@ export interface BudgetLine {
 
 export type POStatus = 'draft' | 'approved' | 'received' | 'closed' | 'cancelled';
 
+export interface PurchaseOrderLine {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  net_amount: number;
+  sort_order: number;
+}
+
+export interface GoodsReceiptSummary {
+  id: string;
+  gr_number: string;
+  received_date: string;
+  receiver_name: string | null;
+  notes: string | null;
+}
+
 export interface PurchaseOrder {
   id: string;
   po_number: string;
@@ -56,6 +73,8 @@ export interface PurchaseOrder {
   approved_by: string | null;
   created_at: string;
   updated_at: string;
+  lines: PurchaseOrderLine[];
+  goods_receipt: GoodsReceiptSummary | null;
 }
 
 export type MatchStatus = 'unmatched' | 'matched' | 'mismatch' | 'posted';

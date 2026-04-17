@@ -38,3 +38,7 @@ class PurchaseOrder(Base):
     budget_line = relationship("BudgetLine", lazy="selectin")
     creator = relationship("User", foreign_keys=[created_by], lazy="selectin")
     approver = relationship("User", foreign_keys=[approved_by], lazy="selectin")
+    lines = relationship("PurchaseOrderLine", back_populates="purchase_order",
+                         cascade="all, delete-orphan", lazy="selectin")
+    goods_receipt = relationship("GoodsReceipt", back_populates="purchase_order",
+                                uselist=False, lazy="selectin")

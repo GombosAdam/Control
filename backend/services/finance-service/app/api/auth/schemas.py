@@ -16,6 +16,7 @@ class UserResponse(BaseModel):
     email: str
     full_name: str
     role: str
+    department_id: Optional[str] = None
     is_active: bool
     last_login: Optional[str] = None
 
@@ -26,6 +27,7 @@ class UserResponse(BaseModel):
             email=user.email,
             full_name=user.full_name,
             role=user.role.value if hasattr(user.role, 'value') else str(user.role),
+            department_id=user.department_id,
             is_active=user.is_active,
             last_login=user.last_login.isoformat() if user.last_login else None,
         )

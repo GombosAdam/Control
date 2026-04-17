@@ -18,7 +18,7 @@ async def _event_listener():
         async for event in event_bus.subscribe(
             "invoice.posted", "invoice.approved", "invoice.enriched",
             "budget.locked", "budget.approved",
-            "po.approved",
+            "po.submitted", "po.step_approved", "po.step_rejected", "po.approved",
             "extraction.corrected",
         ):
             event_type = event.get("event")

@@ -174,3 +174,13 @@ async def get_budget_availability(
     current_user: User = Depends(get_current_user),
 ):
     return await BudgetService.get_availability(db, dept_id)
+
+
+@router.get("/lines/{line_id}/budget-status")
+async def get_budget_line_status(
+    line_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Budget line status with PO breakdown for approval/creation context."""
+    return await BudgetService.get_line_budget_status(db, line_id)

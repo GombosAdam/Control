@@ -25,6 +25,10 @@ import {
   Target,
   Plus,
   MessageCircle,
+  Landmark,
+  RefreshCw,
+  Send,
+  GitBranch,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { UserRole } from '../types/user';
@@ -42,8 +46,10 @@ export interface ModuleDefinition {
   routes: string[];
   items: ModuleItem[];
   roles?: UserRole[];
+  /** Permission resource — if set, module is visible when user has any permission on this resource */
+  permission?: string;
   /** Which service panel this module belongs to */
-  service: 'ai' | 'pipeline' | 'finance';
+  service: 'ai' | 'pipeline' | 'finance' | 'nav';
 }
 
 export const modules: Record<string, ModuleDefinition> = {
@@ -54,6 +60,7 @@ export const modules: Record<string, ModuleDefinition> = {
     icon: MessageCircle,
     routes: ['/chat'],
     service: 'ai',
+    roles: ['admin', 'cfo', 'department_head', 'accountant', 'reviewer', 'clerk'],
     items: [
       { icon: MessageCircle, path: '/chat', labelKey: 'nav.chat' },
     ],
@@ -76,11 +83,16 @@ export const modules: Record<string, ModuleDefinition> = {
     routes: ['/admin'],
     service: 'ai',
     roles: ['admin'],
+    permission: 'admin',
     items: [
       { icon: UsersIcon, path: '/admin/users', labelKey: 'nav.users' },
       { icon: Sliders, path: '/admin/settings', labelKey: 'nav.settings' },
       { icon: Monitor, path: '/admin/system', labelKey: 'nav.system' },
       { icon: ClipboardList, path: '/admin/audit', labelKey: 'nav.audit' },
+      { icon: Building2, path: '/admin/departments', labelKey: 'nav.departments' },
+      { icon: GitBranch, path: '/admin/positions', labelKey: 'nav.positions' },
+      { icon: ClipboardCheck, path: '/admin/po-approvals', labelKey: 'nav.poApprovals' },
+      { icon: Settings, path: '/admin/permissions', labelKey: 'nav.permissions' },
     ],
   },
 
@@ -91,6 +103,8 @@ export const modules: Record<string, ModuleDefinition> = {
     icon: FileText,
     routes: ['/invoices', '/dashboard'],
     service: 'pipeline',
+    roles: ['admin', 'cfo', 'department_head', 'accountant', 'reviewer', 'clerk'],
+    permission: 'invoices',
     items: [
       { icon: LayoutDashboard, path: '/dashboard', labelKey: 'nav.dashboard' },
       { icon: FileText, path: '/invoices', labelKey: 'nav.invoices' },
@@ -106,6 +120,7 @@ export const modules: Record<string, ModuleDefinition> = {
     routes: ['/extraction'],
     service: 'pipeline',
     roles: ['admin', 'accountant'],
+    permission: 'invoices.extraction',
     items: [
       { icon: ListChecks, path: '/extraction/queue', labelKey: 'nav.extractionQueue' },
       { icon: Eye, path: '/extraction/review', labelKey: 'nav.extractionReview' },
@@ -118,6 +133,7 @@ export const modules: Record<string, ModuleDefinition> = {
     routes: ['/reconciliation'],
     service: 'pipeline',
     roles: ['admin', 'cfo', 'accountant'],
+    permission: 'reconciliation',
     items: [
       { icon: GitCompareArrows, path: '/reconciliation', labelKey: 'nav.reconciliation' },
     ],
@@ -129,6 +145,7 @@ export const modules: Record<string, ModuleDefinition> = {
     routes: ['/partners'],
     service: 'pipeline',
     roles: ['admin', 'accountant'],
+    permission: 'partners',
     items: [
       { icon: Building2, path: '/partners', labelKey: 'nav.partners' },
       { icon: Truck, path: '/partners/suppliers', labelKey: 'nav.suppliers' },
@@ -137,13 +154,27 @@ export const modules: Record<string, ModuleDefinition> = {
   },
 
   // ── Pénzügy (finance-service) ──
+  budget: {
+    nameKey: 'modules.budget',
+    color: '#8B5CF6',
+    icon: Wallet,
+    routes: ['/budget'],
+    service: 'finance',
+    roles: ['admin', 'cfo', 'department_head', 'accountant'],
+    permission: 'budget',
+    items: [
+      { icon: Wallet, path: '/budget', labelKey: 'nav.budget' },
+      { icon: TrendingUp, path: '/budget/planning', labelKey: 'nav.budgetPlanning' },
+    ],
+  },
   orders: {
     nameKey: 'modules.orders',
     color: '#06B6D4',
     icon: ShoppingCart,
     routes: ['/orders'],
     service: 'finance',
-    roles: ['admin', 'cfo', 'department_head', 'accountant'],
+    roles: ['admin', 'cfo', 'department_head', 'accountant', 'clerk'],
+    permission: 'orders',
     items: [
       { icon: ShoppingCart, path: '/orders', labelKey: 'nav.orders' },
       { icon: Plus, path: '/orders/new', labelKey: 'nav.newOrder' },
@@ -156,6 +187,7 @@ export const modules: Record<string, ModuleDefinition> = {
     routes: ['/accounting'],
     service: 'pipeline',
     roles: ['admin', 'cfo', 'accountant'],
+    permission: 'accounting',
     items: [
       { icon: BookOpen, path: '/accounting', labelKey: 'nav.accounting' },
       { icon: ListChecks, path: '/accounting/entries', labelKey: 'nav.entries' },
@@ -169,6 +201,7 @@ export const modules: Record<string, ModuleDefinition> = {
     routes: ['/controlling'],
     service: 'finance',
     roles: ['admin', 'cfo', 'department_head'],
+    permission: 'controlling',
     items: [
       { icon: Target, path: '/controlling/ebitda', labelKey: 'nav.planning' },
       { icon: GitCompareArrows, path: '/controlling/commitment', labelKey: 'nav.commitment' },
@@ -181,11 +214,28 @@ export const modules: Record<string, ModuleDefinition> = {
     routes: ['/reports'],
     service: 'finance',
     roles: ['admin', 'cfo', 'department_head'],
+    permission: 'reports',
     items: [
       { icon: BarChart3, path: '/reports', labelKey: 'nav.reports' },
       { icon: TrendingUp, path: '/reports/monthly', labelKey: 'nav.monthly' },
       { icon: Receipt, path: '/reports/vat', labelKey: 'nav.vat' },
       { icon: Truck, path: '/reports/suppliers', labelKey: 'nav.supplierReport' },
+    ],
+  },
+
+  // ── NAV Online Számla ──
+  navOnlineSzamla: {
+    nameKey: 'modules.navOnlineSzamla',
+    color: '#DC2626',
+    icon: Landmark,
+    routes: ['/nav'],
+    service: 'nav',
+    roles: ['admin', 'accountant'],
+    permission: 'nav',
+    items: [
+      { icon: Settings, path: '/nav/settings', labelKey: 'nav.navSettings' },
+      { icon: RefreshCw, path: '/nav/sync', labelKey: 'nav.navSync' },
+      { icon: Send, path: '/nav/submissions', labelKey: 'nav.navSubmissions' },
     ],
   },
 };
@@ -213,6 +263,13 @@ export const servicePanels = [
     labelKey: 'launcher.finance',
     color: '#F97316',
     description: 'launcher.financeDesc',
+    defaultOpen: false,
+  },
+  {
+    key: 'nav' as const,
+    labelKey: 'launcher.nav',
+    color: '#DC2626',
+    description: 'launcher.navDesc',
     defaultOpen: false,
   },
 ];

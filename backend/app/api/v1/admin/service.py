@@ -21,7 +21,10 @@ class AdminService:
             "items": [
                 {
                     "id": u.id, "email": u.email, "full_name": u.full_name,
-                    "role": u.role.value, "is_active": u.is_active,
+                    "role": u.role.value, "department_id": u.department_id,
+                    "position_id": u.position_id,
+                    "position_name": u.position.name if u.position else None,
+                    "is_active": u.is_active,
                     "last_login": u.last_login.isoformat() if u.last_login else None,
                     "created_at": u.created_at.isoformat(),
                 }
@@ -43,13 +46,18 @@ class AdminService:
         user = User(
             email=data.email, password_hash=hash_password(data.password),
             full_name=data.full_name, role=role,
+            department_id=data.department_id,
+            position_id=getattr(data, 'position_id', None),
         )
         db.add(user)
         await db.commit()
         await db.refresh(user)
         return {
             "id": user.id, "email": user.email, "full_name": user.full_name,
-            "role": user.role.value, "is_active": user.is_active,
+            "role": user.role.value, "department_id": user.department_id,
+            "position_id": user.position_id,
+            "position_name": user.position.name if user.position else None,
+            "is_active": user.is_active,
         }
 
     @staticmethod
@@ -64,9 +72,13 @@ class AdminService:
         for key, value in update_data.items():
             setattr(user, key, value)
         await db.commit()
+        await db.refresh(user)
         return {
             "id": user.id, "email": user.email, "full_name": user.full_name,
-            "role": user.role.value, "is_active": user.is_active,
+            "role": user.role.value, "department_id": user.department_id,
+            "position_id": user.position_id,
+            "position_name": user.position.name if user.position else None,
+            "is_active": user.is_active,
         }
 
     @staticmethod

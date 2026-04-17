@@ -26,6 +26,10 @@ const UsersPage = lazy(() => import('./features/admin/pages/UsersPage').then(m =
 const SettingsPage = lazy(() => import('./features/admin/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const SystemPage = lazy(() => import('./features/admin/pages/SystemPage').then(m => ({ default: m.SystemPage })));
 const AuditPage = lazy(() => import('./features/admin/pages/AuditPage').then(m => ({ default: m.AuditPage })));
+const DepartmentsPage = lazy(() => import('./features/admin/pages/DepartmentsPage').then(m => ({ default: m.DepartmentsPage })));
+const PositionsPage = lazy(() => import('./features/admin/pages/PositionsPage').then(m => ({ default: m.PositionsPage })));
+const POApprovalsPage = lazy(() => import('./features/admin/pages/POApprovalsPage').then(m => ({ default: m.POApprovalsPage })));
+const PermissionsPage = lazy(() => import('./features/admin/pages/PermissionsPage').then(m => ({ default: m.PermissionsPage })));
 const AccountingPage = lazy(() => import('./features/accounting/pages/AccountingPage').then(m => ({ default: m.AccountingPage })));
 const GpuControlPage = lazy(() => import('./features/admin/pages/GpuControlPage').then(m => ({ default: m.GpuControlPage })));
 const AccountingTemplatesPage = lazy(() => import('./features/accounting/pages/AccountingTemplatesPage').then(m => ({ default: m.AccountingTemplatesPage })));
@@ -42,6 +46,11 @@ const PlanActualPage = lazy(() => import('./features/controlling/pages/PlanActua
 const EbitdaPage = lazy(() => import('./features/controlling/pages/EbitdaPage').then(m => ({ default: m.EbitdaPage })));
 const CommitmentPage = lazy(() => import('./features/controlling/pages/CommitmentPage').then(m => ({ default: m.CommitmentPage })));
 const ChatPage = lazy(() => import('./features/chat/pages/ChatPage').then(m => ({ default: m.ChatPage })));
+
+// NAV Online Számla pages
+const NavSettingsPage = lazy(() => import('./features/nav/pages/NavSettingsPage').then(m => ({ default: m.NavSettingsPage })));
+const NavSyncPage = lazy(() => import('./features/nav/pages/NavSyncPage').then(m => ({ default: m.NavSyncPage })));
+const NavSubmissionsPage = lazy(() => import('./features/nav/pages/NavSubmissionsPage').then(m => ({ default: m.NavSubmissionsPage })));
 
 function PageLoading() {
   return (
@@ -65,15 +74,15 @@ function AuthenticatedApp() {
             <Route index element={null} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="invoices" element={<InvoiceListPage />} />
-            <Route path="invoices/upload" element={<InvoiceUploadPage />} />
+            <Route path="invoices/upload" element={<RoleGuard roles={['admin', 'accountant']}><InvoiceUploadPage /></RoleGuard>} />
             <Route path="invoices/processing" element={<InvoiceProcessingPage />} />
-            <Route path="invoices/approvals" element={<ApprovalQueuePage />} />
+            <Route path="invoices/approvals" element={<RoleGuard roles={['admin', 'accountant', 'reviewer']}><ApprovalQueuePage /></RoleGuard>} />
             <Route path="extraction/queue" element={<RoleGuard roles={['admin', 'accountant']}><ExtractionQueuePage /></RoleGuard>} />
             <Route path="extraction/review" element={<RoleGuard roles={['admin', 'accountant']}><ExtractionReviewPage /></RoleGuard>} />
             <Route path="budget" element={<RoleGuard roles={['admin', 'cfo', 'department_head', 'accountant']}><BudgetPage /></RoleGuard>} />
             <Route path="budget/planning" element={<RoleGuard roles={['admin', 'cfo', 'department_head', 'accountant']}><BudgetPlanningPage /></RoleGuard>} />
-            <Route path="orders" element={<RoleGuard roles={['admin', 'cfo', 'department_head', 'accountant']}><OrdersPage /></RoleGuard>} />
-            <Route path="orders/new" element={<RoleGuard roles={['admin', 'cfo', 'department_head', 'accountant']}><NewOrderPage /></RoleGuard>} />
+            <Route path="orders" element={<RoleGuard roles={['admin', 'cfo', 'department_head', 'accountant', 'clerk']}><OrdersPage /></RoleGuard>} />
+            <Route path="orders/new" element={<RoleGuard roles={['admin', 'cfo', 'department_head', 'accountant', 'clerk']}><NewOrderPage /></RoleGuard>} />
             <Route path="reconciliation" element={<RoleGuard roles={['admin', 'cfo', 'accountant']}><ReconciliationPage /></RoleGuard>} />
             <Route path="accounting" element={<RoleGuard roles={['admin', 'cfo', 'accountant']}><AccountingPage /></RoleGuard>} />
             <Route path="accounting/entries" element={<RoleGuard roles={['admin', 'cfo', 'accountant']}><AccountingEntriesPage /></RoleGuard>} />
@@ -92,8 +101,15 @@ function AuthenticatedApp() {
             <Route path="admin/settings" element={<RoleGuard roles={['admin']}><SettingsPage /></RoleGuard>} />
             <Route path="admin/system" element={<RoleGuard roles={['admin']}><SystemPage /></RoleGuard>} />
             <Route path="admin/audit" element={<RoleGuard roles={['admin']}><AuditPage /></RoleGuard>} />
+            <Route path="admin/departments" element={<RoleGuard roles={['admin']}><DepartmentsPage /></RoleGuard>} />
+            <Route path="admin/positions" element={<RoleGuard roles={['admin']}><PositionsPage /></RoleGuard>} />
+            <Route path="admin/po-approvals" element={<RoleGuard roles={['admin']}><POApprovalsPage /></RoleGuard>} />
+            <Route path="admin/permissions" element={<RoleGuard roles={['admin']}><PermissionsPage /></RoleGuard>} />
             <Route path="admin/gpu" element={<RoleGuard roles={['admin']}><GpuControlPage /></RoleGuard>} />
             <Route path="chat" element={<ChatPage />} />
+            <Route path="nav/settings" element={<RoleGuard roles={['admin', 'accountant']}><NavSettingsPage /></RoleGuard>} />
+            <Route path="nav/sync" element={<RoleGuard roles={['admin', 'accountant']}><NavSyncPage /></RoleGuard>} />
+            <Route path="nav/submissions" element={<RoleGuard roles={['admin', 'accountant']}><NavSubmissionsPage /></RoleGuard>} />
           </Route>
         </Routes>
       </Suspense>

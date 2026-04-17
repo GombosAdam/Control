@@ -7,7 +7,7 @@ export function LoginPage() {
   const { t } = useTranslation();
   const { login } = useAuthStore();
   const [email, setEmail] = useState('admin@invoice.local');
-  const [password, setPassword] = useState('admin123');
+  const [password, setPassword] = useState('Demo123');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 

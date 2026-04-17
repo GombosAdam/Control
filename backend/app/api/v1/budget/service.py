@@ -336,12 +336,25 @@ class BudgetService:
 
     @staticmethod
     async def get_availability(db: AsyncSession, dept_id: str) -> list[dict]:
-        result = await db.execute(
-            select(BudgetLine).where(
-                BudgetLine.department_id == dept_id,
-                BudgetLine.status.in_([BudgetStatus.approved, BudgetStatus.locked]),
-            ).order_by(BudgetLine.period, BudgetLine.account_code)
+        # Check if department has budget master entries
+        from app.models.department_budget_master import DepartmentBudgetMaster
+        master_result = await db.execute(
+            select(DepartmentBudgetMaster.account_code).where(
+                DepartmentBudgetMaster.department_id == dept_id,
+                DepartmentBudgetMaster.is_active == True,
+            )
         )
+        allowed_codes = [r[0] for r in master_result.all()]
+
+        query = select(BudgetLine).where(
+            BudgetLine.department_id == dept_id,
+            BudgetLine.status.in_([BudgetStatus.approved, BudgetStatus.locked]),
+        )
+        # If master entries exist, filter budget lines to only allowed account codes
+        if allowed_codes:
+            query = query.where(BudgetLine.account_code.in_(allowed_codes))
+
+        result = await db.execute(query.order_by(BudgetLine.period, BudgetLine.account_code))
         lines = result.scalars().all()
 
         items = []

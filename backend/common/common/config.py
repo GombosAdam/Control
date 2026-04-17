@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     AGENT_MODEL: str = "claude-sonnet-4-20250514"
     FINANCE_SERVICE_URL: str = "http://finance-service:8003"
     INVOICE_PIPELINE_URL: str = "http://invoice-pipeline:8002"
+    NAV_SERVICE_URL: str = "http://nav-service:8004"
+    NAV_ENCRYPTION_KEY: str = ""
     AGENT_MAX_TOOL_CALLS: int = 10
     PULSE_CACHE_TTL: int = 300  # 5 perc
 

@@ -6,7 +6,8 @@ export const purchaseOrdersApi = {
 
   create: (data: {
     po_number?: string; department_id: string; budget_line_id: string;
-    supplier_name: string; supplier_tax_id?: string; amount: number;
+    supplier_name: string; supplier_tax_id?: string;
+    lines: { description: string; quantity: number; unit_price: number }[];
     currency?: string; accounting_code: string; description?: string;
   }) =>
     api.post('/purchase-orders/', data).then(r => r.data),
@@ -17,14 +18,17 @@ export const purchaseOrdersApi = {
   approve: (id: string) =>
     api.post(`/purchase-orders/${id}/approve`).then(r => r.data),
 
-  receive: (id: string) =>
-    api.post(`/purchase-orders/${id}/receive`).then(r => r.data),
+  receive: (id: string, data?: { received_date: string; notes?: string }) =>
+    api.post(`/purchase-orders/${id}/receive`, data || {}).then(r => r.data),
 
   delete: (id: string) =>
     api.delete(`/purchase-orders/${id}`).then(r => r.data),
 
   getApprovals: (id: string) =>
     api.get(`/purchase-orders/${id}/approvals`).then(r => r.data),
+
+  getGoodsReceipt: (id: string) =>
+    api.get(`/purchase-orders/${id}/goods-receipt`).then(r => r.data),
 
   decideApproval: (poId: string, step: number, decision: 'approved' | 'rejected', comment?: string) =>
     api.post(`/purchase-orders/${poId}/approvals/${step}/decide`, { decision, comment }).then(r => r.data),

@@ -16,7 +16,8 @@
     "reconciliation": "Egyeztetés",
     "controlling": "Controlling",
     "chat": "AI Asszisztens",
-    "gpu": "GPU Control"
+    "gpu": "GPU Control",
+    "navOnlineSzamla": "NAV Online Számla"
   },
   "launcher": {
     "ai": "AI & Analytics",
@@ -24,7 +25,9 @@
     "pipeline": "Invoices & Pipeline",
     "pipelineDesc": "Számlák, OCR kinyerés, ellenőrzés, egyeztetés, partnerek",
     "finance": "Finance",
-    "financeDesc": "Irányítópult, budget, megrendelések, könyvelés, controlling, riportok"
+    "financeDesc": "Irányítópult, budget, megrendelések, könyvelés, controlling, riportok",
+    "nav": "NAV Online Számla",
+    "navDesc": "NAV bejövő/kimenő számla szinkron, adószám validáció"
   },
   "nav": {
     "accounting": "Könyvelés",
@@ -60,9 +63,15 @@
     "planning": "Tervezés",
     "commitment": "Lekötések",
     "departments": "Osztályok",
+    "positions": "Pozíciók",
+    "poApprovals": "PO jóváhagyások",
+    "permissions": "Jogosultságok",
     "approvals": "Jóváhagyások",
     "accountingTemplates": "Könyvelési tükör",
-    "chat": "Chat"
+    "chat": "Chat",
+    "navSettings": "Beállítások",
+    "navSync": "Szinkronizálás",
+    "navSubmissions": "Beküldések"
   },
   "auth": {
     "login": "Bejelentkezés",
@@ -126,7 +135,14 @@
     "users": "Felhasználók",
     "settings": "Beállítások",
     "system": "Rendszer",
-    "audit": "Audit napló"
+    "audit": "Audit napló",
+    "poApprovals": "PO jóváhagyások",
+    "poApprovalsDesc": "Minden megrendelés jóváhagyási folyamatának áttekintése",
+    "approvalProgress": "Folyamat",
+    "expandAll": "Mind kinyit",
+    "collapseAll": "Mind becsuk",
+    "permissionsTitle": "Jogosultság mátrix",
+    "permissionsDesc": "Szerepkörök és funkciók hozzáférésének kezelése"
   },
   "common": {
     "save": "Mentés",
@@ -140,7 +156,11 @@
     "confirm": "Megerősítés",
     "back": "Vissza",
     "next": "Következő",
-    "previous": "Előző"
+    "previous": "Előző",
+    "actions": "Műveletek",
+    "refresh": "Frissítés",
+    "active": "Aktív",
+    "inactive": "Inaktív"
   },
   "status": {
     "uploaded": "Feltöltve",
@@ -191,5 +211,55 @@
     "rejectTitle": "Számla elutasítása",
     "commentPlaceholder": "Elutasítás indoka...",
     "confirmReject": "Elutasítás"
+  },
+  "navSettings": {
+    "title": "NAV Online Számla - Beállítások",
+    "addConfig": "Új konfiguráció",
+    "newConfig": "Új NAV technikai felhasználó",
+    "taxNumber": "Adószám",
+    "companyName": "Cégnév",
+    "login": "Technikai felhasználó",
+    "password": "Jelszó",
+    "signatureKey": "Aláíró kulcs",
+    "replacementKey": "Csere kulcs",
+    "environment": "Környezet",
+    "lastSync": "Utolsó szinkron",
+    "status": "Státusz",
+    "test": "Teszt",
+    "testConnection": "Kapcsolat tesztelése",
+    "noConfigs": "Nincs NAV konfiguráció. Hozz létre egyet a kezdéshez.",
+    "confirmDelete": "Biztosan törlöd ezt a NAV konfigurációt?"
+  },
+  "navSync": {
+    "title": "NAV Online Számla - Bejövő szinkron",
+    "startSync": "Szinkron indítása",
+    "config": "NAV konfiguráció",
+    "dateFrom": "Dátumtól",
+    "dateTo": "Dátumig",
+    "start": "Indítás",
+    "syncing": "Szinkronizálás...",
+    "status": "Státusz",
+    "dateRange": "Időszak",
+    "found": "Találat",
+    "created": "Létrehozva",
+    "skipped": "Kihagyva",
+    "startedAt": "Kezdés",
+    "completedAt": "Befejezés",
+    "noLogs": "Nincs szinkron napló."
+  },
+  "navSubmissions": {
+    "title": "NAV Online Számla - Beküldések",
+    "allStatuses": "Minden státusz",
+    "invoiceNumber": "Számlaszám",
+    "operation": "Művelet",
+    "status": "Státusz",
+    "navTransactionId": "NAV tranzakció ID",
+    "error": "Hiba",
+    "errorCode": "Hibakód",
+    "createdAt": "Létrehozva",
+    "viewDetails": "Részletek",
+    "refreshStatus": "Státusz frissítés",
+    "transactionDetails": "Tranzakció részletei",
+    "noTransactions": "Nincs NAV tranzakció."
   }
 }

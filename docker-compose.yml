@@ -85,6 +85,36 @@ services:
       redis:
         condition: service_healthy
 
+  nav-celery:
+    build:
+      context: ./backend
+      dockerfile: services/nav-service/Dockerfile
+    container_name: invoice-nav-celery
+    command: celery -A app.workers.celery_app:celery_app worker --loglevel=info --concurrency=2 -Q nav
+    environment:
+      <<: *common-env
+      NAV_ENCRYPTION_KEY: ${NAV_ENCRYPTION_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nav-celery-beat:
+    build:
+      context: ./backend
+      dockerfile: services/nav-service/Dockerfile
+    container_name: invoice-nav-celery-beat
+    command: celery -A app.workers.celery_app:celery_app beat --loglevel=info
+    environment:
+      <<: *common-env
+      NAV_ENCRYPTION_KEY: ${NAV_ENCRYPTION_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   redis_data:

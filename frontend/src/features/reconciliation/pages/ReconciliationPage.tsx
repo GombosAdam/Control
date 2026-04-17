@@ -64,7 +64,7 @@ export function ReconciliationPage() {
 
   const openManual = async (invoiceId: string) => {
     setManualPO(invoiceId);
-    const data = await purchaseOrdersApi.list({ status: 'approved', limit: 100 });
+    const data = await purchaseOrdersApi.list({ status: 'received', limit: 100 });
     setPos(data.items);
   };
 
@@ -123,7 +123,7 @@ export function ReconciliationPage() {
                   }}>
                     <option value="">Válassz PO-t...</option>
                     {pos.map(po => (
-                      <option key={po.id} value={po.id}>{po.po_number} - {po.supplier_name} ({formatCurrency(po.amount, po.currency)})</option>
+                      <option key={po.id} value={po.id}>{po.po_number}{po.goods_receipt ? ` [${po.goods_receipt.gr_number}]` : ''} - {po.supplier_name} ({formatCurrency(po.amount, po.currency)})</option>
                     ))}
                   </select>
                   <button onClick={() => handleManualMatch(inv.id)} style={smallBtn('#0d9488')}>Hozzárendelés</button>

@@ -52,3 +52,15 @@ class AuthService:
     async def refresh_token(user: User) -> TokenResponse:
         token = create_access_token({"sub": user.id, "role": user.role.value})
         return TokenResponse(token=token, user=UserResponse.from_user(user))
+
+    @staticmethod
+    async def switch_user(db: AsyncSession, target_user_id: str) -> TokenResponse:
+        from common.exceptions import NotFoundError
+        result = await db.execute(select(User).where(User.id == target_user_id))
+        target = result.scalar_one_or_none()
+        if not target:
+            raise NotFoundError("User not found")
+        if not target.is_active:
+            raise ValidationError("Target user is inactive")
+        token = create_access_token({"sub": target.id, "role": target.role.value})
+        return TokenResponse(token=token, user=UserResponse.from_user(target))

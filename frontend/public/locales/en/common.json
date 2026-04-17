@@ -16,7 +16,8 @@
     "reconciliation": "Reconciliation",
     "controlling": "Controlling",
     "chat": "AI Assistant",
-    "gpu": "GPU Control"
+    "gpu": "GPU Control",
+    "navOnlineSzamla": "NAV Online Invoice"
   },
   "launcher": {
     "ai": "AI & Analytics",
@@ -24,7 +25,9 @@
     "pipeline": "Invoices & Pipeline",
     "pipelineDesc": "Invoices, OCR extraction, review, reconciliation, partners",
     "finance": "Finance",
-    "financeDesc": "Dashboard, budget, orders, accounting, controlling, reports"
+    "financeDesc": "Dashboard, budget, orders, accounting, controlling, reports",
+    "nav": "NAV Online Invoice",
+    "navDesc": "NAV inbound/outbound invoice sync, tax number validation"
   },
   "nav": {
     "accounting": "Accounting",
@@ -60,9 +63,15 @@
     "planning": "Planning",
     "commitment": "Commitments",
     "departments": "Departments",
+    "positions": "Positions",
+    "poApprovals": "PO Approvals",
+    "permissions": "Permissions",
     "approvals": "Approvals",
     "accountingTemplates": "Accounting Templates",
-    "chat": "Chat"
+    "chat": "Chat",
+    "navSettings": "Settings",
+    "navSync": "Sync",
+    "navSubmissions": "Submissions"
   },
   "auth": {
     "login": "Login",
@@ -126,7 +135,14 @@
     "users": "Users",
     "settings": "Settings",
     "system": "System",
-    "audit": "Audit Log"
+    "audit": "Audit Log",
+    "poApprovals": "PO Approvals",
+    "poApprovalsDesc": "Overview of all purchase order approval workflows",
+    "approvalProgress": "Progress",
+    "expandAll": "Expand All",
+    "collapseAll": "Collapse All",
+    "permissionsTitle": "Permission Matrix",
+    "permissionsDesc": "Manage role-based access to features and functions"
   },
   "common": {
     "save": "Save",
@@ -140,7 +156,11 @@
     "confirm": "Confirm",
     "back": "Back",
     "next": "Next",
-    "previous": "Previous"
+    "previous": "Previous",
+    "actions": "Actions",
+    "refresh": "Refresh",
+    "active": "Active",
+    "inactive": "Inactive"
   },
   "status": {
     "uploaded": "Uploaded",
@@ -191,5 +211,55 @@
     "rejectTitle": "Reject Invoice",
     "commentPlaceholder": "Reason for rejection...",
     "confirmReject": "Reject"
+  },
+  "navSettings": {
+    "title": "NAV Online Invoice - Settings",
+    "addConfig": "Add Configuration",
+    "newConfig": "New NAV Technical User",
+    "taxNumber": "Tax Number",
+    "companyName": "Company Name",
+    "login": "Technical User",
+    "password": "Password",
+    "signatureKey": "Signature Key",
+    "replacementKey": "Replacement Key",
+    "environment": "Environment",
+    "lastSync": "Last Sync",
+    "status": "Status",
+    "test": "Test",
+    "testConnection": "Test Connection",
+    "noConfigs": "No NAV configurations. Create one to get started.",
+    "confirmDelete": "Are you sure you want to delete this NAV configuration?"
+  },
+  "navSync": {
+    "title": "NAV Online Invoice - Inbound Sync",
+    "startSync": "Start Sync",
+    "config": "NAV Configuration",
+    "dateFrom": "Date From",
+    "dateTo": "Date To",
+    "start": "Start",
+    "syncing": "Syncing...",
+    "status": "Status",
+    "dateRange": "Date Range",
+    "found": "Found",
+    "created": "Created",
+    "skipped": "Skipped",
+    "startedAt": "Started",
+    "completedAt": "Completed",
+    "noLogs": "No sync logs."
+  },
+  "navSubmissions": {
+    "title": "NAV Online Invoice - Submissions",
+    "allStatuses": "All Statuses",
+    "invoiceNumber": "Invoice Number",
+    "operation": "Operation",
+    "status": "Status",
+    "navTransactionId": "NAV Transaction ID",
+    "error": "Error",
+    "errorCode": "Error Code",
+    "createdAt": "Created",
+    "viewDetails": "View Details",
+    "refreshStatus": "Refresh Status",
+    "transactionDetails": "Transaction Details",
+    "noTransactions": "No NAV transactions."
   }
 }

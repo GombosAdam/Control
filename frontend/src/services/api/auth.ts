@@ -11,4 +11,10 @@ export const authApi = {
   me: () => api.get('/auth/me').then(r => r.data),
 
   refresh: () => api.post('/auth/refresh').then(r => r.data),
+
+  switchUser: (userId: string) =>
+    api.post(`/auth/switch-user/${userId}`).then(r => r.data),
+
+  getMyPermissions: () =>
+    api.get('/auth/me/permissions').then(r => r.data),
 };
