@@ -20,6 +20,7 @@ from common.models.ai_enrichment import AIEnrichment
 from common.models.planning_period import PlanningPeriod
 from common.models.position import Position
 from common.models.permission import Permission, RolePermission
+from common.models.department_budget_master import DepartmentBudgetMaster
 
 __all__ = [
     "User", "Invoice", "InvoiceLine", "ExtractionResult",
@@ -29,5 +30,5 @@ __all__ = [
     "BudgetLineComment", "Scenario", "InvoiceApproval",
     "PurchaseOrderApproval", "AccountingTemplate", "CfoMetric",
     "AIEnrichment", "PlanningPeriod", "Position",
-    "Permission", "RolePermission",
+    "Permission", "RolePermission", "DepartmentBudgetMaster",
 ]

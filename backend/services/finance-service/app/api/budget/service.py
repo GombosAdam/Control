@@ -355,10 +355,12 @@ class BudgetService:
     @staticmethod
     async def get_availability(db: AsyncSession, dept_id: str) -> list[dict]:
         # Check if department has budget master entries
-        from sqlalchemy import text
+        from common.models.department_budget_master import DepartmentBudgetMaster
         master_result = await db.execute(
-            text("SELECT account_code FROM department_budget_master WHERE department_id = :did AND is_active = true"),
-            {"did": dept_id},
+            select(DepartmentBudgetMaster.account_code).where(
+                DepartmentBudgetMaster.department_id == dept_id,
+                DepartmentBudgetMaster.is_active == True,
+            )
         )
         allowed_codes = [r[0] for r in master_result.all()]
 
